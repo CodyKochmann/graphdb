@@ -2,3 +2,4 @@
 setup.cfg
 setup.py
 graphdb/__init__.py
+graphdb/__main__.py
