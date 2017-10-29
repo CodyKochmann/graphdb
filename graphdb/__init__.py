@@ -2,7 +2,7 @@
 # @Author: Cody Kochmann
 # @Date:   2017-10-25 20:10:58
 # @Last Modified 2017-10-26
-# @Last Modified time: 2017-10-26 15:06:31
+# @Last Modified time: 2017-10-29 14:56:42
 
 from __future__ import print_function, unicode_literals
 del print_function
@@ -73,10 +73,34 @@ class GraphDB(object):
             #print('storing item', item)
             blob = self._serialize(item)
             self._execute(
-                'insert into objects (code) values (?);',
+                'INSERT into objects (code) values (?);',
                 (blob,)
             )
             self._commit()
+
+    def delete_item(self, item):
+        ''' removes an item from the db '''
+        for relation in self.relations_of(item):
+            self.delete_relation(item, relation)
+        for origin, relation in self.relations_to(item, True):
+            self.delete_relation(origin, relation, item)
+        self._execute('''
+            DELETE from objects where code=?
+        ''', (self._serialize(item),))
+        self._commit()
+
+    def replace_item(self, old_item, new_item):
+        if self._id_of(old_item) is not None: # if there is something to replace
+            if self._id_of(new_item) is None: # if the replacement does not already exist
+                self._execute('''
+                    UPDATE objects set code=? where code=?
+                ''', (self._serialize(new_item), self._serialize(old_item)))
+            else: # if the replacement does exist, just move the links from old to new
+                for relation, target in self.relations_of(old_item, True):
+                    self.store_relation(new_item, relation, target)
+                for origin, relation in self.relations_to(old_item, True):
+                    self.store_relation(origin, relation, new_item)
+                self.delete_item(old_item)
 
     def _id_of(self, target):
         try:
@@ -88,9 +112,13 @@ class GraphDB(object):
         except:
             return None
 
+    @staticmethod
+    def __require_string__(target):
+        assert type(target).__name__ in {'str','unicode'}, 'string required'
+
     def store_relation(self, src, name, dst):
         ''' use this to store a relation between two objects '''
-        assert type(name).__name__ in {'str','unicode'}, 'name needs to be a string'
+        self.__require_string__(name)
         #print('storing relation', src, name, dst)
         # make sure both items are stored
         self.store_item(src)
@@ -103,6 +131,26 @@ class GraphDB(object):
         ))
         self._commit()
 
+    def _delete_single_relation(self, src, relation, dest):
+        ''' deletes a single relation between objects '''
+        self.__require_string__(relation)
+        self._execute('''
+            DELETE from relations where src=? and name=? and dst=?
+        ''', (self._id_of(src), relation, self._id_of(dest)))
+        self._commit()
+
+
+    def delete_relation(self, src, relation, *targets):
+        ''' can be both used as (src, relation, dest) for a single relation or
+            (src, relation) to delete all relations of that type from the src '''
+        if len(targets):
+            for i in targets:
+                self._delete_single_relation(src, relation, i)
+        else:
+            # delete all connections of that relation from src
+            for i in list(self.find(src, relation)):
+                self._delete_single_relation(src, relation, i)
+
     def find(self, target, relation):
         ''' returns back all elements the target has a relation to '''
         _ = self._execute('''
@@ -113,13 +161,35 @@ class GraphDB(object):
         for i in _:
             yield self._load(i[0])
 
-    def relations_of(self, target):
-        ''' list all relations for an object '''
-        _ = self._execute('''
-            select distinct name from relations where src=?
-        ''', (self._id_of(target),))
-        for i in _.fetchall():
-            yield i[0]
+    def relations_of(self, target, include_object=False):
+        ''' list all relations the originate from target '''
+        if include_object:
+            _ = self._execute('''
+                select name, (select code from objects where id=dst) from relations where src=?
+            ''', (self._id_of(target),))
+            for i in _.fetchall():
+                yield i[0], self._load(i[1])
+        else:
+            _ = self._execute('''
+                select distinct name from relations where src=?
+            ''', (self._id_of(target),))
+            for i in _.fetchall():
+                yield i[0]
+
+    def relations_to(self, target, include_object=False):
+        ''' list all relations pointing at an object '''
+        if include_object:
+            _ = self._execute('''
+                select name, (select code from objects where id=src) from relations where dst=?
+            ''', (self._id_of(target),))
+            for i in _.fetchall():
+                yield self._load(i[1]), i[0]
+        else:
+            _ = self._execute('''
+                select distinct name from relations where dst=?
+            ''', (self._id_of(target),))
+            for i in _.fetchall():
+                yield i[0]
 
     def connections_of(self, target):
         ''' generate tuples containing (relation, object_that_applies) '''
@@ -127,21 +197,31 @@ class GraphDB(object):
         # this also worked but seemed like it was gonna be more work to parse
         # {r:self.find(target,r) for r in self.relations_of(target)}
 
-    def show_objects(self):
-        ''' display the entire of objects with their (id, serialized_form, actual_value) '''
+    def list_objects(self):
+        ''' list the entire of objects with their (id, serialized_form, actual_value) '''
         for i in self._execute('select * from objects'):
             _id, code = i
-            print(_id, code, self._load(code))
+            yield _id, code, self._load(code)
 
-    def show_relations(self):
-        ''' display every relation in the database as (src, relation, dst) '''
+    def show_objects(self):
+        ''' display the entire of objects with their (id, serialized_form, actual_value) '''
+        for i in self.list_objects():
+            print(*i)
+
+    def list_relations(self):
+        ''' list every relation in the database as (src, relation, dst) '''
         self._execute('select * from relations')
         for i in self._fetchall():
             #print(i)
             src, name, dst = i
             src = self._load(next(self._execute('select code from objects where id=?',(src,)))[0])
             dst = self._load(next(self._execute('select code from objects where id=?',(dst,)))[0])
-            print(src, name, dst)
+            yield src, name, dst
+
+    def show_relations(self):
+        ''' display every relation in the database as (src, relation, dst) '''
+        for i in self.list_relations():
+            print(*i)
 
     def __getitem__(self, key):
         return VList([V(self, key)])
@@ -270,7 +350,7 @@ def run_tests():
     for i in range(1,10):
         src,dst=(i-1,i)
         #print(db._id_of(i))
-        db.store_relation(src, 'proceeds', dst)
+        db.store_relation(src, 'precedes', dst)
         db.store_relation(src, 'even', (not src%2))
         db.store_relation(src, 'odd', bool(src%2))
 
@@ -278,17 +358,17 @@ def run_tests():
     #db.show_relations()
 
     for i in range(5):
-        for ii in db.find(i, 'proceeds'):
+        for ii in db.find(i, 'precedes'):
             print(i, ii)
 
     print(list(db.relations_of(7)))
-    print(list(db[6].proceeds()))
-    print(db[6].proceeds.even.to(list))
-    print(list(db[6].proceeds.even()))
-    print(db[6].proceeds.proceeds.to(list))
-    print(db[6].proceeds.proceeds.even.to(list))
+    print(list(db[6].precedes()))
+    print(db[6].precedes.even.to(list))
+    print(list(db[6].precedes.even()))
+    print(db[6].precedes.precedes.to(list))
+    print(db[6].precedes.precedes.even.to(list))
 
-    seven = db[6].proceeds
+    seven = db[6].precedes
     print(seven)
     print(seven.to(list))
     print('setting an attribute')
@@ -297,7 +377,7 @@ def run_tests():
     db.show_objects()
     db.show_relations()
     seven.prime = True
-    print(db[5].proceeds.proceeds.prime.to(list))
+    print(db[5].precedes.precedes.prime.to(list))
     print(db._id_of(99))
 
     for i in range(1,5):
@@ -320,12 +400,29 @@ def run_tests():
 
     print(db(5).greater_than(list))
     print(db(5).greater_than.where(lambda i:i%2==0)(list))
-    print(db(5).greater_than.proceeds(list))
-    print(db(5).greater_than.proceeds.proceeds.proceeds.proceeds.proceeds.proceeds(list))
+    print(db(5).greater_than.precedes(list))
+    print(db(5).greater_than.precedes.precedes.precedes.precedes.precedes.precedes(list))
 
     print(db(5).greater_than.where('even', lambda i:i==True)(list))
     print(db(5).greater_than.where('even', bool)(list))
 
+    db.delete_relation(5, 'greater_than', 2)
+    db.delete_relation(5, 'greater_than', 2, 3)
+    db.delete_relation(5, 'greater_than')
+
+    db.show_relations()
+    print('-')
+    print(list(db.relations_of(5)))
+    print('-')
+    print(list(db.relations_of(5, True)))
+    print('-')
+    print(list(db.relations_to(5)))
+    print('-')
+    print(list(db.relations_to(5, True)))
+
+    db.replace_item(5, 'waffles')
+    db.delete_item(6)
+    db.show_relations()
 
 
 if __name__ == '__main__':
