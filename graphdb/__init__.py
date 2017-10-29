@@ -2,7 +2,7 @@
 # @Author: Cody Kochmann
 # @Date:   2017-10-25 20:10:58
 # @Last Modified 2017-10-26
-# @Last Modified time: 2017-10-29 14:56:42
+# @Last Modified time: 2017-10-29 15:19:49
 
 from __future__ import print_function, unicode_literals
 del print_function
@@ -143,6 +143,7 @@ class GraphDB(object):
     def delete_relation(self, src, relation, *targets):
         ''' can be both used as (src, relation, dest) for a single relation or
             (src, relation) to delete all relations of that type from the src '''
+        self.__require_string__(relation)
         if len(targets):
             for i in targets:
                 self._delete_single_relation(src, relation, i)
@@ -304,8 +305,6 @@ class VList(list):
                         yield i
 
         return VList(output())
-
-
 
     def to(self, output_type):
         assert type(output_type) == type, 'needed a type here not: {}'.format(output_type)
