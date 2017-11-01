@@ -2,12 +2,13 @@
 # @Author: Cody Kochmann
 # @Date:   2017-10-25 20:10:58
 # @Last Modified 2017-10-26
-# @Last Modified time: 2017-10-29 15:19:49
+# @Last Modified time: 2017-11-01 08:56:07
 
 from __future__ import print_function, unicode_literals
 del print_function
 from base64 import b64encode as b64e, b64decode as b64d
 import generators as gen
+from generators.inline_tools import attempt
 import hashlib
 import pickle
 import sqlite3
@@ -44,6 +45,8 @@ class GraphDB(object):
     ''' sqlite based graph database for storing native python objects and their relationships to each other '''
 
     def __init__(self, path=':memory:'):
+        if path != ':memory:':
+            self._create_file(path)
         self._path = path
         self._conn = sqlite3.connect(self._path)
         self._commit = self._conn.commit
@@ -53,6 +56,17 @@ class GraphDB(object):
         self._fetchone = self._cursor.fetchone
         for i in startup_sql:
             self._execute(i)
+
+    @staticmethod
+    def _create_file(path):
+        ''' creates a file at the given path and sets the permissions to user only read/write '''
+        from os.path import isfile
+        if not isfile(path): # only do the following if the file doesn't exist yet
+            from os import chmod
+            from stat import S_IRUSR, S_IWUSR
+
+            open(path, "a").close()  # create the file
+            attempt(lambda: chmod(path, (S_IRUSR | S_IWUSR)))  # set read and write permissions
 
     @staticmethod
     def _serialize(item):
