@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: Cody Kochmann
 # @Date:   2017-10-25 20:10:58
-# @Last Modified 2017-10-26
-# @Last Modified time: 2017-11-01 08:56:07
+# @Last Modified 2017-11-09
+# @Last Modified time: 2017-11-09 12:05:21
 
 from __future__ import print_function, unicode_literals
 del print_function
@@ -12,6 +12,7 @@ from generators.inline_tools import attempt
 import hashlib
 import pickle
 import sqlite3
+from strict_functions import input_types
 
 ''' sqlite based graph database for storing native python objects and their relationships to each other '''
 
@@ -44,12 +45,14 @@ CREATE TABLE if not exists relations (
 class GraphDB(object):
     ''' sqlite based graph database for storing native python objects and their relationships to each other '''
 
-    def __init__(self, path=':memory:'):
+    def __init__(self, path=':memory:', autostore=True, autocommit=True):
         if path != ':memory:':
             self._create_file(path)
+        self._autostore = True
+        self._autocommit = True
         self._path = path
         self._conn = sqlite3.connect(self._path)
-        self._commit = self._conn.commit
+        self.commit = self._conn.commit
         self._cursor = self._conn.cursor()
         self._execute = self._cursor.execute
         self._fetchall = self._cursor.fetchall
@@ -58,7 +61,7 @@ class GraphDB(object):
             self._execute(i)
 
     @staticmethod
-    def _create_file(path):
+    def _create_file(path=''):
         ''' creates a file at the given path and sets the permissions to user only read/write '''
         from os.path import isfile
         if not isfile(path): # only do the following if the file doesn't exist yet
@@ -69,7 +72,7 @@ class GraphDB(object):
             attempt(lambda: chmod(path, (S_IRUSR | S_IWUSR)))  # set read and write permissions
 
     @staticmethod
-    def _serialize(item):
+    def serialize(item):
         # b64e is used on top of dumps because python loses data when encoding
         # pickled objects for sqlite
         return b64e(pickle.dumps(
@@ -78,19 +81,20 @@ class GraphDB(object):
         ))
 
     @staticmethod
-    def _load(item):
+    def deserialize(item):
         return pickle.loads(b64d(item))
 
     def store_item(self, item):
         ''' use this function to store a python object in the database '''
         if self._id_of(item) is None:
             #print('storing item', item)
-            blob = self._serialize(item)
+            blob = self.serialize(item)
             self._execute(
                 'INSERT into objects (code) values (?);',
                 (blob,)
             )
-            self._commit()
+            if self._autocommit:
+                self.commit()
 
     def delete_item(self, item):
         ''' removes an item from the db '''
@@ -100,15 +104,16 @@ class GraphDB(object):
             self.delete_relation(origin, relation, item)
         self._execute('''
             DELETE from objects where code=?
-        ''', (self._serialize(item),))
-        self._commit()
+        ''', (self.serialize(item),))
+        if self._autocommit:
+            self.commit()
 
     def replace_item(self, old_item, new_item):
         if self._id_of(old_item) is not None: # if there is something to replace
             if self._id_of(new_item) is None: # if the replacement does not already exist
                 self._execute('''
                     UPDATE objects set code=? where code=?
-                ''', (self._serialize(new_item), self._serialize(old_item)))
+                ''', (self.serialize(new_item), self.serialize(old_item)))
             else: # if the replacement does exist, just move the links from old to new
                 for relation, target in self.relations_of(old_item, True):
                     self.store_relation(new_item, relation, target)
@@ -120,7 +125,7 @@ class GraphDB(object):
         try:
             self._execute(
                 'select id from objects where code=? limit 1;',
-                (self._serialize(target),)
+                (self.serialize(target),)
             )
             return self._fetchone()[0]
         except:
@@ -143,7 +148,8 @@ class GraphDB(object):
         ''', (
             name, self._id_of(src), self._id_of(dst)
         ))
-        self._commit()
+        if self._autocommit:
+            self.commit()
 
     def _delete_single_relation(self, src, relation, dest):
         ''' deletes a single relation between objects '''
@@ -151,7 +157,8 @@ class GraphDB(object):
         self._execute('''
             DELETE from relations where src=? and name=? and dst=?
         ''', (self._id_of(src), relation, self._id_of(dest)))
-        self._commit()
+        if self._autocommit:
+            self.commit()
 
 
     def delete_relation(self, src, relation, *targets):
@@ -174,7 +181,7 @@ class GraphDB(object):
         )
         ''', (self._id_of(target), relation))
         for i in _:
-            yield self._load(i[0])
+            yield self.deserialize(i[0])
 
     def relations_of(self, target, include_object=False):
         ''' list all relations the originate from target '''
@@ -183,7 +190,7 @@ class GraphDB(object):
                 select name, (select code from objects where id=dst) from relations where src=?
             ''', (self._id_of(target),))
             for i in _.fetchall():
-                yield i[0], self._load(i[1])
+                yield i[0], self.deserialize(i[1])
         else:
             _ = self._execute('''
                 select distinct name from relations where src=?
@@ -198,7 +205,7 @@ class GraphDB(object):
                 select name, (select code from objects where id=src) from relations where dst=?
             ''', (self._id_of(target),))
             for i in _.fetchall():
-                yield self._load(i[1]), i[0]
+                yield self.deserialize(i[1]), i[0]
         else:
             _ = self._execute('''
                 select distinct name from relations where dst=?
@@ -216,7 +223,12 @@ class GraphDB(object):
         ''' list the entire of objects with their (id, serialized_form, actual_value) '''
         for i in self._execute('select * from objects'):
             _id, code = i
-            yield _id, code, self._load(code)
+            yield _id, code, self.deserialize(code)
+
+    def __iter__(self):
+        ''' iterate over all stored objects in the database '''
+        for i in self._execute('select code from objects'):
+            yield self.deserialize(i[0])
 
     def show_objects(self):
         ''' display the entire of objects with their (id, serialized_form, actual_value) '''
@@ -229,8 +241,8 @@ class GraphDB(object):
         for i in self._fetchall():
             #print(i)
             src, name, dst = i
-            src = self._load(next(self._execute('select code from objects where id=?',(src,)))[0])
-            dst = self._load(next(self._execute('select code from objects where id=?',(dst,)))[0])
+            src = self.deserialize(next(self._execute('select code from objects where id=?',(src,)))[0])
+            dst = self.deserialize(next(self._execute('select code from objects where id=?',(dst,)))[0])
             yield src, name, dst
 
     def show_relations(self):
@@ -239,6 +251,8 @@ class GraphDB(object):
             print(*i)
 
     def __getitem__(self, key):
+        if self._autostore:
+            self.store_item(key)
         return VList([V(self, key)])
 
     def __call__(self, key):
@@ -436,6 +450,9 @@ def run_tests():
     db.replace_item(5, 'waffles')
     db.delete_item(6)
     db.show_relations()
+
+    for i in db:
+        print(i)
 
 
 if __name__ == '__main__':
