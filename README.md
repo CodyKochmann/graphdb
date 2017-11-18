@@ -1,6 +1,8 @@
 # graphdb
 A sqlite based graph database for storing native python objects and their relationships to each other.
 
+![ ](https://bit.ly/graph_db_png)
+
 ## How to install it?
 
 ```
@@ -16,7 +18,7 @@ In [2]: from graphdb import GraphDB
 
 In [3]: # initialize a database
 
-In [4]: db = GraphDB('/tmp/test_graph.db') # uses ':memory:' if no path 
+In [4]: db = GraphDB('/tmp/test_graph.db') # uses ':memory:' if no path
 
 In [5]: # you can store relations between native python objects
 
@@ -90,17 +92,17 @@ In [21]: # so what if we add one more 'comes_before' even though we never
 In [22]: db(7).comes_before.preceding_prime.comes_before.comes_before.comes_before.comes_before(list)
 Out[22]: [6, 7, 9]
 
-In [23]: # the query simply drops that node since its relational path didn't 
+In [23]: # the query simply drops that node since its relational path didn't
     ...: # apply to the 4th result
 
 In [24]: # Why does every query end with '(list)'?
 
-In [25]: # graphdb sets up queries so you can continue to get each next step 
-    ...: # until you add '()' to the end of it which then tells graphdb that 
+In [25]: # graphdb sets up queries so you can continue to get each next step
+    ...: # until you add '()' to the end of it which then tells graphdb that
     ...: # you want a materialized view of that spot.
     ...:
     ...: # The reason why in this demo '(list)' was being added instead of
-    ...: # '()' was because by default, graphdb returns a native python 
+    ...: # '()' was because by default, graphdb returns a native python
     ...: # generator so you can iterate through each individual object
 
 In [26]: # just to demonstrate normal behavior
