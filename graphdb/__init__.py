@@ -2,7 +2,7 @@
 # @Author: Cody Kochmann
 # @Date:   2017-10-25 20:10:58
 # @Last Modified 2017-11-09
-# @Last Modified time: 2017-11-09 12:05:21
+# @Last Modified time: 2017-11-19 14:30:02
 
 from __future__ import print_function, unicode_literals
 del print_function
@@ -12,7 +12,6 @@ from generators.inline_tools import attempt
 import hashlib
 import pickle
 import sqlite3
-from strict_functions import input_types
 
 ''' sqlite based graph database for storing native python objects and their relationships to each other '''
 
@@ -130,6 +129,9 @@ class GraphDB(object):
             return self._fetchone()[0]
         except:
             return None
+
+    def __contains__(self, target):
+        return self._id_of(target) != None
 
     @staticmethod
     def __require_string__(target):
@@ -379,7 +381,9 @@ def run_tests():
         #print(db._id_of(i))
         db.store_relation(src, 'precedes', dst)
         db.store_relation(src, 'even', (not src%2))
-        db.store_relation(src, 'odd', bool(src%2))
+        db(src).odd = bool(src%2)
+
+    print(6 in db) # search the db to see if youve already stored something
 
     #db.show_objects()
     #db.show_relations()
