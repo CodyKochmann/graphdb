@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: Cody Kochmann
 # @Date:   2017-10-25 20:10:58
-# @Last Modified 2017-11-09
-# @Last Modified time: 2017-11-19 14:30:02
+# @Last Modified 2017-11-21
+# @Last Modified time: 2017-11-21 17:28:45
 
 from __future__ import print_function, unicode_literals
 del print_function
@@ -132,6 +132,20 @@ class GraphDB(object):
 
     def __contains__(self, target):
         return self._id_of(target) != None
+
+    def __iadd__(self, target):
+        ''' use this to combine databases '''
+        assert type(target) is self.__class__, 'graph databases can only be added to other graph databases'
+        for src, name, dst in target.list_relations():
+            self.store_relation(src, name, dst)
+
+    def __add__(self, target):
+        ''' use this to create a joined database from two graph databases '''
+        assert type(target) is self.__class__, 'graph databases can only be added to other graph databases'
+        out = GraphDB()
+        out += self
+        out += target
+        return out
 
     @staticmethod
     def __require_string__(target):
@@ -456,6 +470,9 @@ def run_tests():
     db.show_relations()
 
     for i in db:
+        print(i)
+
+    for i in db.list_relations():
         print(i)
 
 
