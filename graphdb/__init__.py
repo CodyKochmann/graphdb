@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: Cody Kochmann
 # @Date:   2017-10-25 20:10:58
-# @Last Modified 2017-11-21
-# @Last Modified time: 2017-11-21 17:28:45
+# @Last Modified 2017-12-26
+# @Last Modified time: 2017-12-26 14:01:24
 
 from __future__ import print_function, unicode_literals
 del print_function
@@ -10,7 +10,7 @@ from base64 import b64encode as b64e, b64decode as b64d
 import generators as gen
 from generators.inline_tools import attempt
 import hashlib
-import pickle
+import dill
 import sqlite3
 
 ''' sqlite based graph database for storing native python objects and their relationships to each other '''
@@ -73,15 +73,15 @@ class GraphDB(object):
     @staticmethod
     def serialize(item):
         # b64e is used on top of dumps because python loses data when encoding
-        # pickled objects for sqlite
-        return b64e(pickle.dumps(
+        # dilled objects for sqlite
+        return b64e(dill.dumps(
             item,
-            protocol=pickle.HIGHEST_PROTOCOL
+            protocol=dill.HIGHEST_PROTOCOL
         ))
 
     @staticmethod
     def deserialize(item):
-        return pickle.loads(b64d(item))
+        return dill.loads(b64d(item))
 
     def store_item(self, item):
         ''' use this function to store a python object in the database '''
