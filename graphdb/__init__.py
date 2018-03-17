@@ -2,7 +2,7 @@
 # @Author: Cody Kochmann
 # @Date:   2017-10-25 20:10:58
 # @Last Modified 2017-12-26
-# @Last Modified time: 2018-03-17 13:34:17
+# @Last Modified time: 2018-03-17 17:58:13
 
 from __future__ import print_function, unicode_literals
 del print_function
@@ -41,25 +41,6 @@ CREATE TABLE if not exists relations (
 );
 '''
 
-
-from functools import wraps
-from _thread import RLock
-
-class share_lock(object):
-    ''' this decorator binds multiple functions to the same lock to clean async operations '''
-    def __init__(self, lock_to_share):
-        #print(lock_to_share)
-        assert isinstance(lock_to_share, RLock)
-        self.lock_to_share = lock_to_share
-
-    def __call__(self, fn):
-        #print(fn)
-        @wraps(fn)
-        def wrapper(*args, **kwargs):
-            #print('calling', fn, 'with', locals())
-            with self.lock_to_share:
-                return fn(*args, **kwargs)
-        return wrapper
 
 from threading import Lock, Semaphore
 
@@ -124,6 +105,20 @@ class read_write_state_machine(object):
         self.state=self.WRITE
         return self.states[self.WRITE]
 
+class better_default_dict(dict):
+    def __init__(self, constructor):
+        if not callable(constructor):
+            constructor = lambda:constructor
+        self._constructor = constructor
+
+    def __getitem__(self, target):
+        if target in self:
+            return dict.__getitem__(self, target)
+        else:
+            dict.__setitem__(self, target, self._constructor())
+            return dict.__getitem__(self, target)
+
+from threading import current_thread
 
 class GraphDB(object):
     ''' sqlite based graph database for storing native python objects and their relationships to each other '''
@@ -135,16 +130,33 @@ class GraphDB(object):
         self._autostore = True
         self._autocommit = True
         self._path = path
-        self._conn = sqlite3.connect(self._path)
-        self.commit = self._conn.commit
-        self._cursor = self._conn.cursor()
-        self._execute = self._cursor.execute
-        self._fetchall = self._cursor.fetchall
-        self._fetchone = self._cursor.fetchone
+        self._connections = better_default_dict(lambda s=self:sqlite3.connect(s._path))
+        self._cursors = better_default_dict(lambda s=self:s.conn.cursor())
         with self._state.write:
             for i in startup_sql:
                 self._execute(i)
             self.autocommit()
+
+    def _fetchone(self):
+        return self._cursor.fetchone()
+
+    def _fetchall(self):
+        return self._cursor.fetchall()
+
+    def _execute(self, *args):
+        return self._cursor.execute(*args)
+
+    @property
+    def _cursor(self):
+        return self._cursors[current_thread()]
+
+    def commit(self):
+        self.conn.commit()
+
+    @property
+    def conn(self):
+        ''' return the connection for this thread '''
+        return self._connections[hash(current_thread())]
 
     def autocommit(self):
         if self._autocommit:
