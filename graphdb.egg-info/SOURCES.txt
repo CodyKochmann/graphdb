@@ -1,0 +1,9 @@
+README.md
+setup.cfg
+graphdb/__init__.py
+graphdb/__main__.py
+graphdb.egg-info/PKG-INFO
+graphdb.egg-info/SOURCES.txt
+graphdb.egg-info/dependency_links.txt
+graphdb.egg-info/requires.txt
+graphdb.egg-info/top_level.txt

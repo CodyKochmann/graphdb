@@ -1,0 +1,12 @@
+Metadata-Version: 1.1
+Name: graphdb
+Version: 2018.1.18
+Summary: sqlite based graph database for storing native python objects and their relationships to each other
+Home-page: https://github.com/CodyKochmann/graphdb
+Author: Cody Kochmann
+Author-email: kochmanncody@gmail.com
+License: UNKNOWN
+Download-URL: https://github.com/CodyKochmann/generators/tarball/2018.1.18
+Description: UNKNOWN
+Keywords: graphdb,graph,sqlite,database,db,node,relation,attribute
+Platform: UNKNOWN

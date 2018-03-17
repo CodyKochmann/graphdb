@@ -2,7 +2,7 @@
 # @Author: Cody Kochmann
 # @Date:   2017-10-25 20:10:58
 # @Last Modified 2017-12-26
-# @Last Modified time: 2017-12-26 14:01:24
+# @Last Modified time: 2018-03-17 13:34:17
 
 from __future__ import print_function, unicode_literals
 del print_function
@@ -12,6 +12,7 @@ from generators.inline_tools import attempt
 import hashlib
 import dill
 import sqlite3
+import better_exceptions
 
 ''' sqlite based graph database for storing native python objects and their relationships to each other '''
 
@@ -41,12 +42,96 @@ CREATE TABLE if not exists relations (
 '''
 
 
+from functools import wraps
+from _thread import RLock
+
+class share_lock(object):
+    ''' this decorator binds multiple functions to the same lock to clean async operations '''
+    def __init__(self, lock_to_share):
+        #print(lock_to_share)
+        assert isinstance(lock_to_share, RLock)
+        self.lock_to_share = lock_to_share
+
+    def __call__(self, fn):
+        #print(fn)
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            #print('calling', fn, 'with', locals())
+            with self.lock_to_share:
+                return fn(*args, **kwargs)
+        return wrapper
+
+from threading import Lock, Semaphore
+
+class read_write_state_machine(object):
+    READ=0
+    WRITE=1
+
+    def __init__(self, readers=4, writers=1):
+        self._state = self.WRITE
+        self.readers = readers
+        self.writers = writers
+        self.state_setter_lock = Lock()
+        self.states = {
+            self.READ: Semaphore(readers),
+            self.WRITE: Semaphore(writers)
+        }
+        self.state = self.READ
+
+    @property
+    def state_lock(self):
+        return self.states[self._state]
+
+    def acquire_current_locks(self):
+        needed = self.writers if self._state else self.readers
+        collected = 0
+        #print(self.state_lock.__dict__)
+        while collected < needed:
+            self.state_lock.acquire()
+            collected+=1
+
+    def release_current_state(self):
+        needed = self.writers if self._state else self.readers
+        for i in range(needed):
+            self.state_lock.release()
+    @property
+    def state(self):
+        return self._state
+
+    @state.setter
+    def state(self, new_state):
+        if new_state != self._state:
+            try: # check if state is being changed
+                self.state_setter_lock.acquire(blocking=False)
+            except:
+                # just wait for the change
+                with self.states[new_state]:
+                    pass
+            else:
+                if new_state != self._state:
+                    #print('switching to write' if new_state else 'switching to read')
+                    self.acquire_current_locks()
+                    self._state = new_state
+                    self.release_current_state()
+                    #print('switched to write' if self._state else 'switched to read')
+    @property
+    def read(self):
+        self.state=self.READ
+        return self.states[self.READ]
+
+    @property
+    def write(self):
+        self.state=self.WRITE
+        return self.states[self.WRITE]
+
+
 class GraphDB(object):
     ''' sqlite based graph database for storing native python objects and their relationships to each other '''
 
     def __init__(self, path=':memory:', autostore=True, autocommit=True):
         if path != ':memory:':
             self._create_file(path)
+        self._state = read_write_state_machine()
         self._autostore = True
         self._autocommit = True
         self._path = path
@@ -56,8 +141,14 @@ class GraphDB(object):
         self._execute = self._cursor.execute
         self._fetchall = self._cursor.fetchall
         self._fetchone = self._cursor.fetchone
-        for i in startup_sql:
-            self._execute(i)
+        with self._state.write:
+            for i in startup_sql:
+                self._execute(i)
+            self.autocommit()
+
+    def autocommit(self):
+        if self._autocommit:
+            self.commit()
 
     @staticmethod
     def _create_file(path=''):
@@ -85,15 +176,18 @@ class GraphDB(object):
 
     def store_item(self, item):
         ''' use this function to store a python object in the database '''
-        if self._id_of(item) is None:
+        #print('storing item', item)
+        item_id = self._id_of(item)
+        #print('item_id', item_id)
+        if item_id is None:
             #print('storing item', item)
             blob = self.serialize(item)
-            self._execute(
-                'INSERT into objects (code) values (?);',
-                (blob,)
-            )
-            if self._autocommit:
-                self.commit()
+            with self._state.write:
+                self._execute(
+                    'INSERT into objects (code) values (?);',
+                    (blob,)
+                )
+                self.autocommit()
 
     def delete_item(self, item):
         ''' removes an item from the db '''
@@ -101,18 +195,20 @@ class GraphDB(object):
             self.delete_relation(item, relation)
         for origin, relation in self.relations_to(item, True):
             self.delete_relation(origin, relation, item)
-        self._execute('''
-            DELETE from objects where code=?
-        ''', (self.serialize(item),))
-        if self._autocommit:
-            self.commit()
+        with self._state.write:
+            self._execute('''
+                DELETE from objects where code=?
+            ''', (self.serialize(item),))
+            self.autocommit()
 
     def replace_item(self, old_item, new_item):
         if self._id_of(old_item) is not None: # if there is something to replace
             if self._id_of(new_item) is None: # if the replacement does not already exist
-                self._execute('''
-                    UPDATE objects set code=? where code=?
-                ''', (self.serialize(new_item), self.serialize(old_item)))
+                with self._state.write:
+                    self._execute('''
+                        UPDATE objects set code=? where code=?
+                    ''', (self.serialize(new_item), self.serialize(old_item)))
+                    self.autocommit()
             else: # if the replacement does exist, just move the links from old to new
                 for relation, target in self.relations_of(old_item, True):
                     self.store_relation(new_item, relation, target)
@@ -122,11 +218,12 @@ class GraphDB(object):
 
     def _id_of(self, target):
         try:
-            self._execute(
-                'select id from objects where code=? limit 1;',
-                (self.serialize(target),)
-            )
-            return self._fetchone()[0]
+            with self._state.read:
+                self._execute(
+                    'select id from objects where code=? limit 1;',
+                    (self.serialize(target),)
+                )
+                return self._fetchone()[0]
         except:
             return None
 
@@ -158,24 +255,27 @@ class GraphDB(object):
         # make sure both items are stored
         self.store_item(src)
         self.store_item(dst)
-        # run the insertion
-        self._execute('''
-        insert into relations (name, src, dst) values (?,?,?);
-        ''', (
-            name, self._id_of(src), self._id_of(dst)
-        ))
-        if self._autocommit:
-            self.commit()
+        src_id = self._id_of(src)
+        dst_id = self._id_of(dst)
+        with self._state.write:
+            #print(locals())
+            # run the insertion
+            self._execute(
+                'insert into relations (name, src, dst) values (?,?,?);',
+                (name, src_id, dst_id)
+            )
+            self.autocommit()
 
-    def _delete_single_relation(self, src, relation, dest):
+    def _delete_single_relation(self, src, relation, dst):
         ''' deletes a single relation between objects '''
         self.__require_string__(relation)
-        self._execute('''
-            DELETE from relations where src=? and name=? and dst=?
-        ''', (self._id_of(src), relation, self._id_of(dest)))
-        if self._autocommit:
-            self.commit()
-
+        src_id = self._id_of(src)
+        dst_id = self._id_of(dst)
+        with self._state.write:
+            self._execute('''
+                DELETE from relations where src=? and name=? and dst=?
+            ''', (src_id, relation, dst_id))
+            self.autocommit()
 
     def delete_relation(self, src, relation, *targets):
         ''' can be both used as (src, relation, dest) for a single relation or
@@ -191,59 +291,66 @@ class GraphDB(object):
 
     def find(self, target, relation):
         ''' returns back all elements the target has a relation to '''
-        _ = self._execute('''
-        select code from objects where id in (
-            select dst from relations where src=? and name=?
-        )
-        ''', (self._id_of(target), relation))
+        with self._state.read:
+            _ = self._execute('''
+            select code from objects where id in (
+                select dst from relations where src=? and name=?
+            )
+            ''', (self._id_of(target), relation)).fetchall()
         for i in _:
             yield self.deserialize(i[0])
 
     def relations_of(self, target, include_object=False):
         ''' list all relations the originate from target '''
         if include_object:
-            _ = self._execute('''
-                select name, (select code from objects where id=dst) from relations where src=?
-            ''', (self._id_of(target),))
-            for i in _.fetchall():
+            with self._state.read:
+                _ = self._execute('''
+                    select name, (select code from objects where id=dst) from relations where src=?
+                ''', (self._id_of(target),)).fetchall()
+            for i in _:
                 yield i[0], self.deserialize(i[1])
         else:
-            _ = self._execute('''
-                select distinct name from relations where src=?
-            ''', (self._id_of(target),))
-            for i in _.fetchall():
+            with self._state.read:
+                _ = self._execute('''
+                    select distinct name from relations where src=?
+                ''', (self._id_of(target),)).fetchall()
+            for i in _:
                 yield i[0]
 
     def relations_to(self, target, include_object=False):
         ''' list all relations pointing at an object '''
         if include_object:
-            _ = self._execute('''
-                select name, (select code from objects where id=src) from relations where dst=?
-            ''', (self._id_of(target),))
-            for i in _.fetchall():
+            with self._state.read:
+                _ = self._execute('''
+                    select name, (select code from objects where id=src) from relations where dst=?
+                ''', (self._id_of(target),)).fetchall()
+            for i in _:
                 yield self.deserialize(i[1]), i[0]
         else:
-            _ = self._execute('''
-                select distinct name from relations where dst=?
-            ''', (self._id_of(target),))
-            for i in _.fetchall():
+            with self._state.read:
+                _ = self._execute('''
+                    select distinct name from relations where dst=?
+                ''', (self._id_of(target),)).fetchall()
+            for i in _:
                 yield i[0]
 
     def connections_of(self, target):
         ''' generate tuples containing (relation, object_that_applies) '''
         return gen.chain( ((r,i) for i in self.find(target,r)) for r in self.relations_of(target) )
-        # this also worked but seemed like it was gonna be more work to parse
-        # {r:self.find(target,r) for r in self.relations_of(target)}
 
     def list_objects(self):
         ''' list the entire of objects with their (id, serialized_form, actual_value) '''
-        for i in self._execute('select * from objects'):
+        with self._state.read:
+            _ = self._execute('select * from objects').fetchall()
+        for i in _:
             _id, code = i
             yield _id, code, self.deserialize(code)
 
     def __iter__(self):
         ''' iterate over all stored objects in the database '''
-        for i in self._execute('select code from objects'):
+        with self._state.read:
+            _ = self._execute('select code from objects').fetchall()
+        for i in _:
             yield self.deserialize(i[0])
 
     def show_objects(self):
@@ -253,12 +360,18 @@ class GraphDB(object):
 
     def list_relations(self):
         ''' list every relation in the database as (src, relation, dst) '''
-        self._execute('select * from relations')
-        for i in self._fetchall():
+        with self._state.read:
+            _ = self._execute('select * from relations').fetchall()
+        for i in _:
             #print(i)
             src, name, dst = i
-            src = self.deserialize(next(self._execute('select code from objects where id=?',(src,)))[0])
-            dst = self.deserialize(next(self._execute('select code from objects where id=?',(dst,)))[0])
+            with self._state.read:
+                src = self.deserialize(
+                    next(self._execute('select code from objects where id=?',(src,)))[0]
+                )
+                dst = self.deserialize(
+                    next(self._execute('select code from objects where id=?',(dst,)))[0]
+                )
             yield src, name, dst
 
     def show_relations(self):
@@ -393,6 +506,7 @@ def run_tests():
     for i in range(1,10):
         src,dst=(i-1,i)
         #print(db._id_of(i))
+        print('testing',(src, 'precedes', dst))
         db.store_relation(src, 'precedes', dst)
         db.store_relation(src, 'even', (not src%2))
         db(src).odd = bool(src%2)
