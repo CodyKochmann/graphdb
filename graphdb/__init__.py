@@ -2,7 +2,7 @@
 # @Author: Cody Kochmann
 # @Date:   2017-10-25 20:10:58
 # @Last Modified 2017-12-26
-# @Last Modified time: 2017-12-26 14:01:24
+# @Last Modified time: 2017-12-26 14:42:22
 
 from __future__ import print_function, unicode_literals
 del print_function
@@ -11,9 +11,11 @@ import generators as gen
 from generators.inline_tools import attempt
 import hashlib
 import dill
-import sqlite3
+from hashlib import sha256
+from collections import defaultdict
 
 ''' sqlite based graph database for storing native python objects and their relationships to each other '''
+
 
 __todo__ = '''
 - have different relations stored in generated
@@ -23,52 +25,19 @@ __todo__ = '''
 - add type enforcement to match relationships with attributes
 '''
 
-startup_sql='''
-CREATE TABLE if not exists objects (
-    id integer primary key autoincrement,
-    code text not null,
-    unique(code) on conflict ignore
-);
-''','''
-CREATE TABLE if not exists relations (
-    src int not null,
-    name text not null,
-    dst int not null,
-    unique(src, name, dst) on conflict ignore,
-    foreign key(src) references objects(id),
-    foreign key(dst) references objects(id)
-);
-'''
-
+class Relations(object):
+    pass
 
 class GraphDB(object):
-    ''' sqlite based graph database for storing native python objects and their relationships to each other '''
+    ''' graph database for storing native python objects and their relationships to each other '''
 
-    def __init__(self, path=':memory:', autostore=True, autocommit=True):
-        if path != ':memory:':
-            self._create_file(path)
-        self._autostore = True
-        self._autocommit = True
+    def __init__(self, path=':memory:', autostore=True):
+        if path == ':memory:':
+            self._db = {}
+        else:
+            self._db = dbm.open(path, 'c')
+        self._autostore = autostore
         self._path = path
-        self._conn = sqlite3.connect(self._path)
-        self.commit = self._conn.commit
-        self._cursor = self._conn.cursor()
-        self._execute = self._cursor.execute
-        self._fetchall = self._cursor.fetchall
-        self._fetchone = self._cursor.fetchone
-        for i in startup_sql:
-            self._execute(i)
-
-    @staticmethod
-    def _create_file(path=''):
-        ''' creates a file at the given path and sets the permissions to user only read/write '''
-        from os.path import isfile
-        if not isfile(path): # only do the following if the file doesn't exist yet
-            from os import chmod
-            from stat import S_IRUSR, S_IWUSR
-
-            open(path, "a").close()  # create the file
-            attempt(lambda: chmod(path, (S_IRUSR | S_IWUSR)))  # set read and write permissions
 
     @staticmethod
     def serialize(item):
@@ -80,20 +49,22 @@ class GraphDB(object):
         ))
 
     @staticmethod
+    def hash(*args):
+        hasher = sha256()
+        for a in args:
+            hasher.update(a if type(a) is bytes else a.encode() if type(a) is str else b64e(dill.dumps(a, protocol=dill.HIGHEST_PROTOCOL)))
+        return hasher.hexdigest()
+
+    @staticmethod
     def deserialize(item):
         return dill.loads(b64d(item))
 
     def store_item(self, item):
         ''' use this function to store a python object in the database '''
-        if self._id_of(item) is None:
-            #print('storing item', item)
-            blob = self.serialize(item)
-            self._execute(
-                'INSERT into objects (code) values (?);',
-                (blob,)
-            )
-            if self._autocommit:
-                self.commit()
+        item_hash = self.hash(item)
+        if item_hash not in self._db:
+            self._db[item_hash] = item
+            self._db[self.hash(item, Relations)] = defaultdict(set)
 
     def delete_item(self, item):
         ''' removes an item from the db '''
