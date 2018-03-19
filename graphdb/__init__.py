@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: Cody Kochmann
 # @Date:   2017-10-25 20:10:58
-# @Last Modified 2017-12-26
-# @Last Modified time: 2018-03-17 17:58:13
+# @Last Modified 2018-03-19
+# @Last Modified time: 2018-03-19 17:48:20
 
 from __future__ import print_function, unicode_literals
 del print_function
@@ -12,7 +12,6 @@ from generators.inline_tools import attempt
 import hashlib
 import dill
 import sqlite3
-import better_exceptions
 
 ''' sqlite based graph database for storing native python objects and their relationships to each other '''
 
