@@ -12,6 +12,8 @@ from generators.inline_tools import attempt
 import hashlib
 import dill
 import sqlite3
+from os import remove
+from os.path import isfile
 
 ''' sqlite based graph database for storing native python objects and their relationships to each other '''
 
@@ -136,6 +138,17 @@ class GraphDB(object):
                 self._execute(i)
             self.autocommit()
 
+    def close(self):
+        for con in self._connections.values():
+            con.close()
+            
+    def _destroy(self):
+        self.close()
+        if self._path != ':memory:' and isfile(self._path):
+            remove(self._path)
+        self.__dict__.clear()
+        del self
+            
     def _fetchone(self):
         return self._cursor.fetchone()
 
@@ -599,7 +612,33 @@ def run_tests():
 
     for i in db.list_relations():
         print(i)
+        
+    db._destroy()
 
+def run_unittests():
+    print('\nrunning unittests...\n')
+    import unittest, sys, os
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    import __test__
+    sys.path.pop()
+    
+    unittest.TextTestRunner(verbosity=2).run(
+        unittest.findTestCases(__test__)
+    )
+
+def run_benchmarks():
+    print('\nrunning benchmarks...\n')
+    import unittest, sys, os
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    import __benchmark__
+    sys.path.pop()
+    
+    unittest.TextTestRunner(verbosity=0).run(
+        unittest.findTestCases(__benchmark__)
+    )
 
 if __name__ == '__main__':
     run_tests()
+    run_unittests()
+    run_benchmarks()
+    
