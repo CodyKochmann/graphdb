@@ -1,0 +1,12 @@
+   6282/sec - 1 step traversal
+   3343/sec - 2 step traversal
+   2234/sec - 3 step traversal
+   1699/sec - 4 step traversal
+   1367/sec - 5 step traversal
+   1134/sec - 6 step traversal
+    979/sec - 7 step traversal
+    985/sec - 7 step traversal (circular)
+   4854/sec - object insertion
+   1998/sec - relation insertion
+  24988/sec - serialization
+  19758/sec - serialization/deserialization
