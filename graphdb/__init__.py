@@ -2,7 +2,7 @@
 # @Author: Cody Kochmann
 # @Date:   2017-10-25 20:10:58
 # @Last Modified 2018-03-19
-# @Last Modified time: 2018-03-19 17:48:20
+# @Last Modified time: 2018-03-21 15:54:40
 
 from __future__ import print_function, unicode_literals
 del print_function
@@ -133,22 +133,23 @@ class GraphDB(object):
         self._path = path
         self._connections = better_default_dict(lambda s=self:sqlite3.connect(s._path))
         self._cursors = better_default_dict(lambda s=self:s.conn.cursor())
-        with self._state.write:
+        self._write_lock = Lock()
+        with self._write_lock:
             for i in startup_sql:
                 self._execute(i)
-            self.autocommit()
+            self.commit()
 
     def close(self):
         for con in self._connections.values():
             con.close()
-            
+
     def _destroy(self):
         self.close()
         if self._path != ':memory:' and isfile(self._path):
             remove(self._path)
         self.__dict__.clear()
         del self
-            
+
     def _fetchone(self):
         return self._cursor.fetchone()
 
@@ -206,7 +207,7 @@ class GraphDB(object):
         if item_id is None:
             #print('storing item', item)
             blob = self.serialize(item)
-            with self._state.write:
+            with self._write_lock:
                 self._execute(
                     'INSERT into objects (code) values (?);',
                     (blob,)
@@ -219,7 +220,7 @@ class GraphDB(object):
             self.delete_relation(item, relation)
         for origin, relation in self.relations_to(item, True):
             self.delete_relation(origin, relation, item)
-        with self._state.write:
+        with self._write_lock:
             self._execute('''
                 DELETE from objects where code=?
             ''', (self.serialize(item),))
@@ -228,7 +229,7 @@ class GraphDB(object):
     def replace_item(self, old_item, new_item):
         if self._id_of(old_item) is not None: # if there is something to replace
             if self._id_of(new_item) is None: # if the replacement does not already exist
-                with self._state.write:
+                with self._write_lock:
                     self._execute('''
                         UPDATE objects set code=? where code=?
                     ''', (self.serialize(new_item), self.serialize(old_item)))
@@ -242,12 +243,11 @@ class GraphDB(object):
 
     def _id_of(self, target):
         try:
-            with self._state.read:
-                self._execute(
-                    'select id from objects where code=? limit 1;',
-                    (self.serialize(target),)
-                )
-                return self._fetchone()[0]
+            self._execute(
+                'select id from objects where code=? limit 1;',
+                (self.serialize(target),)
+            )
+            return self._fetchone()[0]
         except:
             return None
 
@@ -279,14 +279,12 @@ class GraphDB(object):
         # make sure both items are stored
         self.store_item(src)
         self.store_item(dst)
-        src_id = self._id_of(src)
-        dst_id = self._id_of(dst)
-        with self._state.write:
+        with self._write_lock:
             #print(locals())
             # run the insertion
             self._execute(
-                'insert into relations (name, src, dst) values (?,?,?);',
-                (name, src_id, dst_id)
+                'insert into relations select ob1.id, ?, ob2.id from objects as ob1, objects as ob2 where ob1.code=? and ob2.code=?;',
+                (name, self.serialize(src), self.serialize(dst))
             )
             self.autocommit()
 
@@ -295,7 +293,7 @@ class GraphDB(object):
         self.__require_string__(relation)
         src_id = self._id_of(src)
         dst_id = self._id_of(dst)
-        with self._state.write:
+        with self._write_lock:
             self._execute('''
                 DELETE from relations where src=? and name=? and dst=?
             ''', (src_id, relation, dst_id))
@@ -315,46 +313,38 @@ class GraphDB(object):
 
     def find(self, target, relation):
         ''' returns back all elements the target has a relation to '''
-        with self._state.read:
-            _ = self._execute('''
-            select code from objects where id in (
-                select dst from relations where src=? and name=?
-            )
-            ''', (self._id_of(target), relation)).fetchall()
-        for i in _:
+        query = 'select ob1.code from objects as ob1, objects as ob2, relations where relations.dst=ob1.id and relations.name=? and relations.src=ob2.id and ob2.code=?' # src is id not source :/
+        for i in self._execute(query, (relation, self.serialize(target))):
             yield self.deserialize(i[0])
 
     def relations_of(self, target, include_object=False):
         ''' list all relations the originate from target '''
         if include_object:
-            with self._state.read:
-                _ = self._execute('''
-                    select name, (select code from objects where id=dst) from relations where src=?
-                ''', (self._id_of(target),)).fetchall()
+            _ = self._execute('''
+                select relations.name, ob2.code from relations, objects as ob1, objects as ob2 where relations.src=ob1.id and ob2.id=relations.dst and ob1.code=?
+            ''', (self.serialize(target),))
             for i in _:
                 yield i[0], self.deserialize(i[1])
         else:
-            with self._state.read:
-                _ = self._execute('''
-                    select distinct name from relations where src=?
-                ''', (self._id_of(target),)).fetchall()
+
+            _ = self._execute('''
+                select distinct relations.name from relations, objects where relations.src=objects.id and objects.code=?
+            ''', (self.serialize(target),))
             for i in _:
                 yield i[0]
 
     def relations_to(self, target, include_object=False):
         ''' list all relations pointing at an object '''
         if include_object:
-            with self._state.read:
-                _ = self._execute('''
-                    select name, (select code from objects where id=src) from relations where dst=?
-                ''', (self._id_of(target),)).fetchall()
+            _ = self._execute('''
+                select name, (select code from objects where id=src) from relations where dst=?
+            ''', (self._id_of(target),))
             for i in _:
                 yield self.deserialize(i[1]), i[0]
         else:
-            with self._state.read:
-                _ = self._execute('''
-                    select distinct name from relations where dst=?
-                ''', (self._id_of(target),)).fetchall()
+            _ = self._execute('''
+                select distinct name from relations where dst=?
+            ''', (self._id_of(target),))
             for i in _:
                 yield i[0]
 
@@ -364,17 +354,13 @@ class GraphDB(object):
 
     def list_objects(self):
         ''' list the entire of objects with their (id, serialized_form, actual_value) '''
-        with self._state.read:
-            _ = self._execute('select * from objects').fetchall()
-        for i in _:
+        for i in self._execute('select * from objects'):
             _id, code = i
             yield _id, code, self.deserialize(code)
 
     def __iter__(self):
         ''' iterate over all stored objects in the database '''
-        with self._state.read:
-            _ = self._execute('select code from objects').fetchall()
-        for i in _:
+        for i in self._execute('select code from objects'):
             yield self.deserialize(i[0])
 
     def show_objects(self):
@@ -384,18 +370,16 @@ class GraphDB(object):
 
     def list_relations(self):
         ''' list every relation in the database as (src, relation, dst) '''
-        with self._state.read:
-            _ = self._execute('select * from relations').fetchall()
+        _ = self._execute('select * from relations').fetchall()
         for i in _:
             #print(i)
             src, name, dst = i
-            with self._state.read:
-                src = self.deserialize(
-                    next(self._execute('select code from objects where id=?',(src,)))[0]
-                )
-                dst = self.deserialize(
-                    next(self._execute('select code from objects where id=?',(dst,)))[0]
-                )
+            src = self.deserialize(
+                next(self._execute('select code from objects where id=?',(src,)))[0]
+            )
+            dst = self.deserialize(
+                next(self._execute('select code from objects where id=?',(dst,)))[0]
+            )
             yield src, name, dst
 
     def show_relations(self):
@@ -612,7 +596,7 @@ def run_tests():
 
     for i in db.list_relations():
         print(i)
-        
+
     db._destroy()
 
 def run_unittests():
@@ -621,7 +605,7 @@ def run_unittests():
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
     import __test__
     sys.path.pop()
-    
+
     unittest.TextTestRunner(verbosity=2).run(
         unittest.findTestCases(__test__)
     )
@@ -632,7 +616,7 @@ def run_benchmarks():
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
     import __benchmark__
     sys.path.pop()
-    
+
     unittest.TextTestRunner(verbosity=0).run(
         unittest.findTestCases(__benchmark__)
     )
@@ -641,4 +625,4 @@ if __name__ == '__main__':
     run_tests()
     run_unittests()
     run_benchmarks()
-    
+
