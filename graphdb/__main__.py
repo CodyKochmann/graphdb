@@ -4,16 +4,17 @@
 # @Last Modified 2017-10-26
 # @Last Modified time: 2017-10-26 12:55:29
 
-from sys import argv
-import graphdb
 import argparse
+from sys import argv
+
+import graphdb
 
 parser = argparse.ArgumentParser(prog='__main__.py')
 
 parser.add_argument(
-    '--test',
-    help="run tests to see if battle_tested works correctly on you system",
-    action='store_true'
+        '--test',
+        help="run tests to see if battle_tested works correctly on you system",
+        action='store_true'
 )
 
 if '__main__.py' in argv[-1] or 'help' in argv:
@@ -22,9 +23,9 @@ if '__main__.py' in argv[-1] or 'help' in argv:
 args, unknown = parser.parse_known_args()
 
 if args.test:
-    print('-'*80)
+    print('-' * 80)
     print('running graphdb.run_tests')
     graphdb.run_tests()
-    print('-'*80)
+    print('-' * 80)
     print('all tests were successful')
-    print('-'*80)
+    print('-' * 80)
