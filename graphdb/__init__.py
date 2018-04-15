@@ -2,13 +2,14 @@
 # @Author: Cody Kochmann
 # @Date:   2017-10-25 20:10:58
 # @Last Modified 2018-03-19
-# @Last Modified time: 2018-03-21 15:54:40
+# @Last Modified time: 2018-04-15 17:52:34
 
 from __future__ import print_function, unicode_literals
 del print_function
 from base64 import b64encode as b64e, b64decode as b64d
 import generators as gen
 from generators.inline_tools import attempt
+from strict_functions import overload
 import hashlib
 import dill
 import sqlite3
@@ -447,29 +448,18 @@ class VList(list):
             #print(type(i))
             assert type(i) == V, 'needed a V and got a {}'.format(type(i))
 
-    def where(self, *args):
+    def where(self, relation, filter_fn):
         ''' use this to filter VLists, simply provide a filter function and what relation to apply it to '''
-        assert len(args) in {1,2}, 'invalid number of arguments for where'
-        if len(args) == 1:
-            relation, filter_fn = '', args[0]
-        elif len(args) == 2:
-            relation, filter_fn = args
-
-        assert callable(filter_fn), 'VList.where needs filter_fn to be a callable function'
         assert type(relation).__name__ in {'str','unicode'}, 'where needs the first arg to be a string'
+        assert callable(filter_fn), 'filter_fn needs to be callable'
+        return VList(i for i in self if relation in i._relations() and any(filter_fn(_()) for _ in i[relation]))
 
-        def output(self=self, relation=relation, filter_fn=filter_fn):
-            ''' this is an internal function because the output needs to be a VList but the problem is cleaner with a generator '''
-            if len(relation): # if a relation is defined
-                for i in self:
-                    if relation in i._relations() and any(filter_fn(_()) for _ in i[relation]):
-                        yield i
-            else: # if no relation is defined, check against current values
-                for i in self:
-                    if filter_fn(i()):
-                        yield i
+    def _where(self, filter_fn):
+        ''' use this to filter VLists, simply provide a filter function to filter the current found objects '''
+        assert callable(filter_fn), 'filter_fn needs to be callable'
+        return VList(i for i in self if filter_fn(i()))
 
-        return VList(output())
+    where = overload(_where, where)
 
     def to(self, output_type):
         assert type(output_type) == type, 'needed a type here not: {}'.format(output_type)

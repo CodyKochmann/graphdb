@@ -6,7 +6,7 @@ setup(
   name = 'graphdb',
   packages = ['graphdb'], # this must be the same as the name above
   version = version,
-  install_requires = ["generators", "dill"],
+  install_requires = ["generators", "strict_functions", "dill"],
   description = 'sqlite based graph database for storing native python objects and their relationships to each other',
   author = 'Cody Kochmann',
   author_email = 'kochmanncody@gmail.com',
