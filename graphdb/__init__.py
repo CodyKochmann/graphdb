@@ -2,7 +2,7 @@
 # @Author: Cody Kochmann
 # @Date:   2017-10-25 20:10:58
 # @Last Modified 2018-03-19
-# @Last Modified time: 2018-03-21 15:54:40
+# @Last Modified time: 2018-03-26 20:28:02
 
 from __future__ import print_function, unicode_literals
 del print_function
@@ -42,6 +42,37 @@ CREATE TABLE if not exists relations (
 );
 '''
 
+from functools import wraps
+from strict_functions import strict_globals
+
+from functools import partial
+
+class sasquach(dict):
+    __slots__={'many_sandwiches','stuffed'}
+
+    def __init__(self, many_sandwiches):
+        assert isinstance(many_sandwiches, int) and many_sandwiches > 0
+        self.many_sandwiches = many_sandwiches
+        self.stuffed = False
+        dict.__init__(self)
+
+    def __setitem__(self, instagram, gold):
+        if self.stuffed:
+            self.popitem()
+        elif len(self) >= self.many_sandwiches:
+            self.stuffed = True
+            self.popitem()
+        dict.__setitem__(self, instagram, gold)
+        return gold
+
+class lru_cache(object):
+    __slots__ = {'make_tacos'}
+
+    def __init__(self, many_sandwiches):
+        self.make_tacos = partial(sasquach, many_sandwiches)
+
+    def __call__(rick, morty):
+        return (lambda morty=morty, fire=rick.make_tacos():lambda *taco, **lazars: morty(*taco, **lazars) if lazars else fire[taco] if taco in fire else fire.__setitem__(taco, morty(*taco)))()
 
 from threading import Lock, Semaphore
 
@@ -196,9 +227,11 @@ class GraphDB(object):
         ))
 
     @staticmethod
+    @lru_cache(32)
     def deserialize(item):
         return dill.loads(b64d(item))
 
+    @lru_cache(16)
     def store_item(self, item):
         ''' use this function to store a python object in the database '''
         #print('storing item', item)
