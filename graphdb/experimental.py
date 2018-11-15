@@ -1,4 +1,6 @@
 import dill
+from threading import Lock
+
 from base64 import b64encode as b64e
 from strict_functions import overload
 
@@ -31,13 +33,11 @@ class NodeLinker(dict):
         return dir({}) + self.keys()
 
 class NodeCollection(list):
-    def __init__(self):
+    def __init__(self, target=None):
         list.__init__(self)
-    @overload
-    def __init__(self, target):
-        list.__init__(self)
-        for t in target:
-            self.append(target)
+        if target is not None:
+            for t in target:
+                self.append(t)
     def append(self, new_node):
         assert isinstance(new_node, RamGraphDBNode), 'NodeCollections can only append RamGraphDBNodes'
         list.append(self, new_node)
@@ -82,7 +82,7 @@ class RamGraphDBNode(object):
     def __hash__(self):
         return self._hash
     @staticmethod
-    def __validate_relation_name__(name):
+    def __validate_relation_name__(relation_name):
         assert isinstance(relation_name, str) and relation_name, 'relation_names have to be non-empty strings'
     @staticmethod
     def __validate_link_target__(target):
@@ -130,19 +130,20 @@ class RamGraphDB(object):
         raise NotImplementedError()
 
     @staticmethod
-    def _item_hash(self, item):
+    def _item_hash(item):
         return hash(item if isinstance(item, RamGraphDBNode) else RamGraphDBNode(item))
 
-    @staticmethod
     def __contains__(self, item):
-        return hash(item) in self.nodes
+        return self._item_hash(item) in self.nodes
 
     def store_item(self, item):
         ''' use this function to store a python object in the database '''
         assert not isinstance(item, RamGraphDBNode)
         node = RamGraphDBNode(item)
+        node_hash = hash(node)
         if node not in self:
-            self.nodes[hash(node)] = node
+            self.nodes[node_hash] = node
+        return self.nodes[node_hash]
 
     def delete_item(self, item):
         ''' removes an item from the db '''
@@ -191,13 +192,12 @@ class RamGraphDB(object):
         assert type(target).__name__ in {'str','unicode'}, 'string required'
 
     def store_relation(self, src, name, dst):
-        raise NotImplementedError()
         ''' use this to store a relation between two objects '''
         self.__require_string__(name)
-        #print('storing relation', src, name, dst)
+        print('storing relation', src, name, dst)
         # make sure both items are stored
-        self.store_item(src)
-        self.store_item(dst)
+        self.store_item(src).link(name, self.store_item(dst))
+
 
     def _delete_single_relation(self, src, relation, dst):
         ''' deletes a single relation between objects '''
@@ -260,9 +260,17 @@ class RamGraphDB(object):
         raise NotImplementedError()
         #return VList([V(self, key)])
 
+
+if __name__ == '__main__':
+    db = RamGraphDB()
+    db.store_item('tom')
+    assert 'tom' in db
+    db.store_item('bob')
+    db.store_relation('tom', 'knows', 'bob')
+    exit()
+
 if __name__ == '__main__':
     import __test__
-    from threading import Lock
     __test__.GraphDB = RamGraphDB
     GraphDBTest = __test__.GraphDBTest
     __test__.unittest.main()
