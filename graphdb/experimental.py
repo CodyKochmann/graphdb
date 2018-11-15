@@ -259,3 +259,10 @@ class RamGraphDB(object):
     def __call__(self, key):
         raise NotImplementedError()
         #return VList([V(self, key)])
+
+if __name__ == '__main__':
+    import __test__
+    from threading import Lock
+    __test__.GraphDB = RamGraphDB
+    GraphDBTest = __test__.GraphDBTest
+    __test__.unittest.main()
