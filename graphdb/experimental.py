@@ -250,7 +250,8 @@ class RamGraphDB(object):
 
     def list_objects(self):
         ''' list the entire of objects with their (id, serialized_form, actual_value) '''
-        raise NotImplementedError()
+        for _id in self.nodes:
+            yield self.nodes[_id].obj
 
     def __iter__(self):
         ''' iterate over all stored objects in the database '''
@@ -287,8 +288,10 @@ if __name__ == '__main__':
     db = RamGraphDB()
     db.store_item('tom')
     assert 'tom' in db
+    assert list(db.list_objects()) == ['tom']
     db.store_item('bob')
-    assert 'tom' in db
+    assert 'bob' in db
+    assert set(db.list_objects()) == {'tom', 'bob'}
     db.store_relation('tom', 'knows', 'bob')
     assert list(db.relations_of('tom')) == ['knows']
     assert list(db.relations_of('tom', True)) == [('knows', 'bob')]
