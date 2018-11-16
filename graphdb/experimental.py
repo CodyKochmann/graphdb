@@ -1,8 +1,8 @@
 import dill
 from threading import Lock
-
 from base64 import b64encode as b64e
 from strict_functions import overload
+
 
 def serialize(item):
     # b64e is used on top of dumps because python loses data when encoding
@@ -11,6 +11,7 @@ def serialize(item):
         item,
         protocol=dill.HIGHEST_PROTOCOL
     ))
+
 
 class better_default_dict(dict):
     def __init__(self, constructor):
@@ -87,17 +88,21 @@ class RamGraphDBNode(object):
     @staticmethod
     def __validate_link_target__(target):
         assert isinstance(target, RamGraphDBNode), 'RamGraphDBNodes can only link to other RamGraphDBNodes'
+
     def link(self, relation_name, target):
         self.__validate_relation_name__(relation_name)
         self.__validate_link_target__(target)
         if target not in self.outgoing[relation_name]:
             self.outgoing[relation_name].append(target)
+        if self not in target.incoming[relation_name]:
             target.incoming[relation_name].append(self)
+
     def unlink(self, relation_name, target):
         self.__validate_relation_name__(relation_name)
         self.__validate_link_target__(target)
-        if relation_name in self.outgoing and target in self.outgoing[relation_name]:
+        if relation_name in self.outgoing:
             self.outgoing[relation_name].remove(target)
+        if target in self.outgoing[relation_name]:
             target.incoming[relation_name].remove(self)
     def __eq__(self, target):
         return target.obj == self.obj or target.obj is self.obj
@@ -111,11 +116,11 @@ class RamGraphDBNode(object):
         self.outgoing.clear()
         self.obj = None
     def _rehash(self):
-        print('hashing with id')
+        #print('hashing with id')
         return hash( (type(self._obj), id(self._obj)) )
     @overload
     def _rehash(self):
-        print('hashing with object')
+        #print('hashing with object')
         return hash( (type(self._obj), hash(self._obj)) )
 
 class RamGraphDB(object):
@@ -136,6 +141,10 @@ class RamGraphDB(object):
     def __contains__(self, item):
         return self._item_hash(item) in self.nodes
 
+    def _get_item_node(self, item):
+        assert item in self
+        return self.nodes[self._item_hash(item)]
+
     def store_item(self, item):
         ''' use this function to store a python object in the database '''
         assert not isinstance(item, RamGraphDBNode)
@@ -148,7 +157,8 @@ class RamGraphDB(object):
     def delete_item(self, item):
         ''' removes an item from the db '''
         h = self._item_hash(item)
-        if h in self:
+        if item in self:
+            print('deleting item:', item)
             self.nodes[h].clear()
             del self.nodes[h]
 
@@ -215,11 +225,23 @@ class RamGraphDB(object):
 
     def relations_of(self, target, include_object=False):
         ''' list all relations the originate from target '''
-        raise NotImplementedError()
+        relations = self._get_item_node(target).outgoing
+        if include_object:
+            for k in relations:
+                for v in relations[k]:
+                    yield k, v.obj
+        else:
+            yield from relations
 
     def relations_to(self, target, include_object=False):
         ''' list all relations pointing at an object '''
-        raise NotImplementedError()
+        relations = self._get_item_node(target).incoming
+        if include_object:
+            for k in relations:
+                for v in relations[k]:
+                    yield k, v.obj
+        else:
+            yield from relations
 
     def connections_of(self, target):
         ''' generate tuples containing (relation, object_that_applies) '''
@@ -266,7 +288,14 @@ if __name__ == '__main__':
     db.store_item('tom')
     assert 'tom' in db
     db.store_item('bob')
+    assert 'tom' in db
     db.store_relation('tom', 'knows', 'bob')
+    assert list(db.relations_of('tom')) == ['knows']
+    assert list(db.relations_of('tom', True)) == [('knows', 'bob')]
+    assert list(db.relations_to('bob')) == ['knows']
+    assert list(db.relations_to('bob', True)) == [('knows', 'tom')]
+    db.delete_item('bob')
+    assert 'bob' not in db
     exit()
 
 if __name__ == '__main__':
