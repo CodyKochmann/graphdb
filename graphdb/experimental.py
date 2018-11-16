@@ -248,10 +248,14 @@ class RamGraphDB(object):
         raise NotImplementedError()
         #return gen.chain( ((r,i) for i in self.find(target,r)) for r in self.relations_of(target) )
 
+    def iter_nodes(self):
+        for _id in self.nodes:
+            yield self.nodes[_id]
+
     def list_objects(self):
         ''' list the entire of objects with their (id, serialized_form, actual_value) '''
-        for _id in self.nodes:
-            yield self.nodes[_id].obj
+        for node in self.iter_nodes():
+            yield node.obj
 
     def __iter__(self):
         ''' iterate over all stored objects in the database '''
@@ -267,7 +271,9 @@ class RamGraphDB(object):
 
     def list_relations(self):
         ''' list every relation in the database as (src, relation, dst) '''
-        raise NotImplementedError()
+        for node in self.iter_nodes():
+            for relation, target in self.relations_of(node.obj, True):
+                yield node.obj, relation, target
 
     def show_relations(self):
         ''' display every relation in the database as (src, relation, dst) '''
@@ -297,6 +303,7 @@ if __name__ == '__main__':
     assert list(db.relations_of('tom', True)) == [('knows', 'bob')]
     assert list(db.relations_to('bob')) == ['knows']
     assert list(db.relations_to('bob', True)) == [('knows', 'tom')]
+    assert list(db.list_relations()) == [('tom', 'knows', 'bob')]
     db.delete_item('bob')
     assert 'bob' not in db
     exit()
