@@ -2,6 +2,7 @@ import dill
 from threading import Lock
 from base64 import b64encode as b64e
 from strict_functions import overload
+import generators as gen
 from functools import partial
 
 def serialize(item):
@@ -210,13 +211,12 @@ class RamGraphDB(object):
         raise NotImplementedError()
         self.__require_string__(relation)
 
-    def delete_relation(self, src, relation, *targets):
+    def delete_relation(self, src, relation, target):
         ''' can be both used as (src, relation, dest) for a single relation or
             (src, relation) to delete all relations of that type from the src '''
         self.__require_string__(relation)
-        src_node = self._get_item_node(src)
-        for t in targets:
-            src_node.unlink(relation, self._get_item_node(t))
+        if src in self and target in self:
+            self._get_item_node(src).unlink(relation, self._get_item_node(target))
 
     def delete_item(self, item):
         ''' removes an item from the db '''
@@ -293,15 +293,113 @@ class RamGraphDB(object):
                     print(repr(src_node.obj), '-', relation, '-', repr(dst_node.obj))
 
     def __getitem__(self, key):
-        raise NotImplementedError()
-        #if self._autostore:
-        #    self.store_item(key)
-        #return VList([V(self, key)])
+        if self._autostore:
+            self.store_item(key)
+        return VList([V(self, key)])
 
     def __call__(self, key):
-        raise NotImplementedError()
-        #return VList([V(self, key)])
+        return VList([V(self, key)])
 
+
+class V(object):
+    """docstring for V"""
+    __slots__ = ('_graph_value','_graph_db','_relations')
+
+    def __init__(self, db, value):
+        self._graph_db = db
+        self._graph_value = value
+        self._relations = lambda s=self: list(s._graph_db.relations_of(s._graph_value))
+        #self._connections = lambda db=db, s=self: db.connections_of(s)
+
+    def __getattribute__(self, key):
+        ''' this runs a query on the next step of the query '''
+        #print('get', key)
+        if key in V.__slots__ or key == '__slots__':
+            return object.__getattribute__(self, key)
+        else:
+            return VList(V(self._graph_db, _) for _ in self._graph_db.find(self._graph_value, key))
+            #return V(self._graph_db, next(self._graph_db.find(self._graph_value, key), None))
+
+    __getitem__ = __getattribute__
+
+    def to(self, output_type):
+        assert type(output_type) == type, 'needed a type here not: {}'.format(output_type)
+        return output_type([self()])
+
+    def __setattr__(self, key, value):
+        #print('set', key, value)
+        if type(value) == VList:
+            # create a relation to every object in the VList
+            for i in value():
+                setattr(self, key, i)
+        if type(value) == V:
+            value = value() # load the actual value if the target is this specific class
+        if key in self.__slots__:
+            object.__setattr__(self, key, value)
+        else:
+            self._graph_db.store_relation(self(), key, value)
+
+    def __call__(self):
+        return self._graph_value.obj if isinstance(self._graph_value, RamGraphDBNode) else self._graph_value
+
+class VList(list):
+    _slots = tuple(dir(list)) + ('_slots','to','where')
+
+    def __init__(self, *args):
+        list.__init__(self, *args)
+        for i in self:
+            #print(type(i))
+            assert type(i) == V, 'needed a V and got a {}'.format(type(i))
+
+    def where(self, relation, filter_fn):
+        ''' use this to filter VLists, simply provide a filter function and what relation to apply it to '''
+        assert type(relation).__name__ in {'str','unicode'}, 'where needs the first arg to be a string'
+        assert callable(filter_fn), 'filter_fn needs to be callable'
+        return VList(i for i in self if relation in i._relations() and any(filter_fn(_()) for _ in i[relation]))
+
+    def _where(self, filter_fn):
+        ''' use this to filter VLists, simply provide a filter function to filter the current found objects '''
+        assert callable(filter_fn), 'filter_fn needs to be callable'
+        return VList(i for i in self if filter_fn(i()))
+
+    where = overload(_where, where)
+
+    def to(self, output_type):
+        assert type(output_type) == type, 'needed a type here not: {}'.format(output_type)
+        return output_type(self())
+
+    def __setattr__(self, key, value):
+        #print('set', key, value)
+        if type(value) == VList:
+            # create a relation to every object in the VList
+            for v in self():
+                setattr(self, key, i)
+        if type(value) == V:
+            value = value() # load the actual value if the target is this specific class
+        if key in self._slots:
+            object.__setattr__(self, key, value)
+        else:
+            for v in self:
+                setattr(v, key, value)
+            #self._graph_db.store_relation(self(), key, value)
+
+    def __getattribute__(self, key):
+        if key in VList._slots:
+            return object.__getattribute__(self, key)
+        else:
+            # run the attribute query on all elements in self
+            g = lambda:gen.chain( (fv for fv in getattr(v,key)) for v in self )
+            return VList(g())
+
+    __getitem__ = __getattribute__
+
+    def __call__(self, output_type=None):
+        # load all values where this is called
+        if output_type is None:
+            return (i() for i in self)
+        else:
+            return output_type(i() for i in self)
+ 
 
 if __name__ == '__main__':
     db = RamGraphDB()
@@ -356,6 +454,98 @@ if __name__ == '__main__':
 
     db1._destroy()
     db2._destroy()
+
+    print('-')
+
+    db = RamGraphDB()
+
+    for i in range(1,10):
+        src,dst=(i-1,i)
+        #print(db._id_of(i))
+        print('testing',(src, 'precedes', dst))
+        db.store_relation(src, 'precedes', dst)
+        db.store_relation(src, 'even', (not src%2))
+        db(src).odd = bool(src%2)
+
+    print(6 in db) # search the db to see if youve already stored something
+
+    #db.show_objects()
+    #db.show_relations()
+
+    for i in range(5):
+        for ii in db.find(i, 'precedes'):
+            print(i, ii)
+
+    print(list(db.relations_of(7)))
+    print(list(db[6].precedes()))
+    print(db[6].precedes.even.to(list))
+    print(list(db[6].precedes.even()))
+    print(db[6].precedes.precedes.to(list))
+    print(db[6].precedes.precedes.even.to(list))
+
+    seven = db[6].precedes
+    print(seven)
+    print(seven.to(list))
+    print('setting an attribute')
+
+
+    db.show_objects()
+    db.show_relations()
+    print(db[5].precedes.precedes.prime.to(list))
+    seven.prime = True
+
+    for i in range(1,5):
+        print(i)
+        db[5].greater_than = i
+
+    print(db[5].greater_than.to(list))
+
+    db.show_objects()
+    db.show_relations()
+    print(list(db.relations_of(5)))
+
+    print()
+
+    print(list(gen.chain( ((r,i.obj) for i in db.find(5,r)) for r in db.relations_of(5) )))
+
+    for r in db.relations_of(5):
+        print(r)
+        print([i.obj for i in db.find(5,r)])
+
+    print(db(5).greater_than(list))
+    print(db(5).greater_than.where(lambda i:i%2==0)(list))
+    print(db(5).greater_than.precedes(list))
+    print(db(5).greater_than.precedes.precedes.precedes.precedes.precedes.precedes(list))
+
+    print(db(5).greater_than.where('even', lambda i:i==True)(list))
+    print(db(5).greater_than.where('even', bool)(list))
+
+    db.delete_relation(5, 'greater_than', 2)
+    db.delete_relation(5, 'greater_than', 2)
+    db.delete_relation(5, 'greater_than', 3)
+
+    db.show_relations()
+    print('-')
+    print(list(db.relations_of(5)))
+    print('-')
+    print(list(db.relations_of(5, True)))
+    print('-')
+    print(list(db.relations_to(5)))
+    print('-')
+    print(list(db.relations_to(5, True)))
+
+    db.replace_item(5, 'waffles')
+    db.delete_item(6)
+    db.show_relations()
+
+    for i in db:
+        print(i)
+
+    for i in db.list_relations():
+        print(i)
+
+    db._destroy()
+
 
     exit()
 
