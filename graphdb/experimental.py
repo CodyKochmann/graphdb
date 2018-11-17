@@ -341,14 +341,13 @@ if __name__ == '__main__':
     assert set(db.list_relations()) == {('abby', 'knows', 'cody')}
     show()
 
-    exit()
-
     db1 = RamGraphDB()
     db2 = RamGraphDB()
     db1.store_relation('bill', 'knows', 'tim')
     db2.store_relation('bill', 'knows', 'tom')
     assert set((db1 + db2).list_relations()) == {('bill', 'knows', 'tim'), ('bill', 'knows', 'tom')}
 
+    exit()
 
 if __name__ == '__main__':
     import __test__
