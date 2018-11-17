@@ -2,7 +2,7 @@ import dill
 from threading import Lock
 from base64 import b64encode as b64e
 from strict_functions import overload
-
+from functools import partial
 
 def serialize(item):
     # b64e is used on top of dumps because python loses data when encoding
@@ -34,11 +34,16 @@ class NodeLinker(dict):
         return dir({}) + self.keys()
 
 class NodeCollection(list):
-    def __init__(self, target=None):
+    def __init__(self, owner=None):
         list.__init__(self)
-        if target is not None:
-            for t in target:
-                self.append(t)
+        self.owner = owner
+    def clear(self):
+        list.clear(self)
+        self.owner.autoclean()
+    def pop(self, *args, **kwargs):
+        list.pop(self, *args, **kwargs)
+        if not self:
+            self.owner.autoclean()
     def append(self, new_node):
         assert isinstance(new_node, RamGraphDBNode), 'NodeCollections can only append RamGraphDBNodes'
         list.append(self, new_node)
@@ -51,18 +56,24 @@ class NodeCollection(list):
 
 class RelationCollection(better_default_dict):
     def __init__(self):
-        better_default_dict.__init__(self, NodeCollection)
+        better_default_dict.__init__(self, partial(NodeCollection, self))
     def __iadd__(self, target):
         assert isinstance(target, RelationCollection)
         for key in target:
             self[key] += target[key]
+
+    def autoclean(self):
+        targets = {k for k, v in self.items() if not v}
+        for t in targets:
+            del self[t]
+
     def __add__(self, target):
         out = RelationCollection()
         out += self
         out += target
         return out
     def clear(self):
-        for key in self:
+        for key in list(self):
             self[key].clear()
         dict.clear(self)
 
@@ -96,7 +107,6 @@ class RamGraphDBNode(object):
             self.outgoing[relation_name].append(target)
         if self not in target.incoming[relation_name]:
             target.incoming[relation_name].append(self)
-
     def unlink(self, relation_name, target):
         self.__validate_relation_name__(relation_name)
         self.__validate_link_target__(target)
@@ -153,14 +163,6 @@ class RamGraphDB(object):
         if node not in self:
             self.nodes[node_hash] = node
         return self.nodes[node_hash]
-
-    def delete_item(self, item):
-        ''' removes an item from the db '''
-        h = self._item_hash(item)
-        if item in self:
-            print('deleting item:', item)
-            self.nodes[h].clear()
-            del self.nodes[h]
 
     def replace_item(self, old_item, new_item):
         new_hash = self._item_hash(new_item)
@@ -222,6 +224,20 @@ class RamGraphDB(object):
         for t in targets:
             src_node.unlink(relation, self._get_item_node(t))
 
+    def delete_item(self, item):
+        ''' removes an item from the db '''
+        for relation, dst in self.relations_of(item, True):
+            self.delete_relation(item, relation, dst)
+            #print(item, relation, dst)
+        for relation, src in self.relations_to(item, True):
+            self.delete_relation(src, relation, item)
+            #print(src, relation, item)
+        h = self._item_hash(item)
+        if item in self:
+            print('deleting item:', item)
+            self.nodes[h].clear()
+            del self.nodes[h]
+
     def find(self, target, relation):
         ''' returns back all elements the target has a relation to '''
         return self._get_item_node(target).outgoing[relation]
@@ -267,7 +283,7 @@ class RamGraphDB(object):
         for key in self.nodes:
             node = self.nodes[key]
             value = node.obj
-            print(key, repr(value), node)
+            print(key, '-', repr(value), '-', node)
 
     def list_relations(self):
         ''' list every relation in the database as (src, relation, dst) '''
@@ -277,7 +293,10 @@ class RamGraphDB(object):
 
     def show_relations(self):
         ''' display every relation in the database as (src, relation, dst) '''
-        raise NotImplementedError()
+        for src_node in self.iter_nodes():
+            for relation in src_node.outgoing:
+                for dst_node in src_node.outgoing[relation]:
+                    print(repr(src_node.obj), '-', relation, '-', repr(dst_node.obj))
 
     def __getitem__(self, key):
         raise NotImplementedError()
@@ -292,14 +311,23 @@ class RamGraphDB(object):
 
 if __name__ == '__main__':
     db = RamGraphDB()
+    def show():
+        print('objects')
+        db.show_objects()
+        print('relations')
+        db.show_relations()
     db.store_item('tom')
+    show()
     assert 'tom' in db
     assert list(db) == ['tom']
     db.store_item('bob')
+    show()
     assert 'bob' in db
     assert set(db) == {'tom', 'bob'}
     db.store_relation('tom', 'knows', 'bob')
+    show()
     db.store_relation('tom', 'knows', 'bill')
+    show()
     assert list(db.relations_of('tom')) == ['knows']
     assert set(db.relations_of('tom', True)) == {('knows', 'bob'), ('knows', 'bill')}
     assert list(db.relations_to('bob')) == ['knows']
@@ -307,11 +335,13 @@ if __name__ == '__main__':
     assert isinstance(db.find('tom', 'knows'), NodeCollection)
     assert {i.obj for i in db.find('tom', 'knows')} == {'bob', 'bill'}
     db.delete_relation('tom', 'knows', 'bill')
+    show()
     assert set(db.relations_of('tom', True)) == {('knows', 'bob')}
     assert set(db.list_relations()) == {('tom', 'knows', 'bob')}
     db.delete_item('bob')
+    show()
     assert 'bob' not in db
-    #db.show_objects()
+
     exit()
 
 if __name__ == '__main__':
