@@ -110,9 +110,8 @@ class RamGraphDBNode(object):
     def unlink(self, relation_name, target):
         self.__validate_relation_name__(relation_name)
         self.__validate_link_target__(target)
-        if relation_name in self.outgoing:
+        if relation_name in self.outgoing and target in self.outgoing[relation_name]:
             self.outgoing[relation_name].remove(target)
-        if target in self.outgoing[relation_name]:
             target.incoming[relation_name].remove(self)
     def __eq__(self, target):
         return target.obj == self.obj or target.obj is self.obj
@@ -165,20 +164,13 @@ class RamGraphDB(object):
         return self.nodes[node_hash]
 
     def replace_item(self, old_item, new_item):
-        new_hash = self._item_hash(new_item)
-        old_hash = self._item_hash(old_item)
-        assert old_hash in self.nodes
-        old_node = self.nodes[old_hash]
-        if new_hash in self.nodes:
-            self.nodes[new_hash].absorb(old_node)
-        else:
-            old_node.obj = new_item
-            self.nodes[new_hash] = old_node
-        del self.nodes[old_hash]
-
-        self.nodes[self._item_hash(old_item)]
-        raise NotImplementedError()
-        # delete replace the object so it applies to all established relations
+        for relation, dst in self.relations_of(old_item, True):
+            self.delete_relation(old_item, relation, dst)
+            self.store_relation(new_item, relation, dst)
+        for relation, src in self.relations_to(old_item, True):
+            self.delete_relation(src, relation, old_item)
+            self.store_relation(src, relation, new_item)
+        self.delete_item(old_item)
 
     def _id_of(self, target):
         raise NotImplementedError()
@@ -341,6 +333,15 @@ if __name__ == '__main__':
     db.delete_item('bob')
     show()
     assert 'bob' not in db
+    assert set(db.list_relations()) == set()
+
+    db.store_relation('abby', 'knows', 'tom')
+    show()
+    db.replace_item('tom', 'cody')
+    assert set(db.list_relations()) == {('abby', 'knows', 'cody')}
+    show()
+
+    exit()
 
     db1 = RamGraphDB()
     db2 = RamGraphDB()
@@ -348,7 +349,6 @@ if __name__ == '__main__':
     db2.store_relation('bill', 'knows', 'tom')
     assert set((db1 + db2).list_relations()) == {('bill', 'knows', 'tim'), ('bill', 'knows', 'tom')}
 
-    exit()
 
 if __name__ == '__main__':
     import __test__
