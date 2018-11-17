@@ -255,21 +255,17 @@ class RamGraphDB(object):
         for _id in self.nodes:
             yield self.nodes[_id]
 
-    def list_objects(self):
-        ''' list the entire of objects with their (id, serialized_form, actual_value) '''
-        for node in self.iter_nodes():
-            yield node.obj
-
     def __iter__(self):
         ''' iterate over all stored objects in the database '''
-        raise NotImplementedError()
+        for node in self.iter_nodes():
+            yield node.obj
         #for i in self._execute('select code from objects'):
         #    yield self.deserialize(i[0])
 
     def show_objects(self):
         ''' display the entire of objects with their (id, serialized_form, actual_value) '''
         raise NotImplementedError()
-        #for i in self.list_objects():
+        #for i in self:
         #    print(*i)
 
     def list_relations(self):
@@ -297,10 +293,10 @@ if __name__ == '__main__':
     db = RamGraphDB()
     db.store_item('tom')
     assert 'tom' in db
-    assert list(db.list_objects()) == ['tom']
+    assert list(db) == ['tom']
     db.store_item('bob')
     assert 'bob' in db
-    assert set(db.list_objects()) == {'tom', 'bob'}
+    assert set(db) == {'tom', 'bob'}
     db.store_relation('tom', 'knows', 'bob')
     db.store_relation('tom', 'knows', 'bill')
     assert list(db.relations_of('tom')) == ['knows']
