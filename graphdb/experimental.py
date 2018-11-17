@@ -263,10 +263,11 @@ class RamGraphDB(object):
         #    yield self.deserialize(i[0])
 
     def show_objects(self):
-        ''' display the entire of objects with their (id, serialized_form, actual_value) '''
-        raise NotImplementedError()
-        #for i in self:
-        #    print(*i)
+        ''' display the entire of objects with their (id, value, node) '''
+        for key in self.nodes:
+            node = self.nodes[key]
+            value = node.obj
+            print(key, repr(value), node)
 
     def list_relations(self):
         ''' list every relation in the database as (src, relation, dst) '''
@@ -310,6 +311,7 @@ if __name__ == '__main__':
     assert set(db.list_relations()) == {('tom', 'knows', 'bob')}
     db.delete_item('bob')
     assert 'bob' not in db
+    #db.show_objects()
     exit()
 
 if __name__ == '__main__':
