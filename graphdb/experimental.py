@@ -186,14 +186,14 @@ class RamGraphDB(object):
 
     def __iadd__(self, target):
         ''' use this to combine databases '''
-        raise NotImplementedError()
-        assert type(target) is self.__class__, 'graph databases can only be added to other graph databases'
-        #for src, name, dst in target.list_relations():
-        #    self.store_relation(src, name, dst)
+        assert isinstance(target, RamGraphDB), 'graph databases can only be added to other graph databases'
+        for src, name, dst in target.list_relations():
+            self.store_relation(src, name, dst)
+        return self
 
     def __add__(self, target):
         ''' use this to create a joined database from two graph databases '''
-        assert type(target) is self.__class__, 'graph databases can only be added to other graph databases'
+        assert isinstance(target, RamGraphDB), 'graph databases can only be added to other graph databases'
         out = RamGraphDB()
         out += self
         out += target
@@ -341,6 +341,12 @@ if __name__ == '__main__':
     db.delete_item('bob')
     show()
     assert 'bob' not in db
+
+    db1 = RamGraphDB()
+    db2 = RamGraphDB()
+    db1.store_relation('bill', 'knows', 'tim')
+    db2.store_relation('bill', 'knows', 'tom')
+    assert set((db1 + db2).list_relations()) == {('bill', 'knows', 'tim'), ('bill', 'knows', 'tom')}
 
     exit()
 
