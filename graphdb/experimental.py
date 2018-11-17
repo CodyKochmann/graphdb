@@ -217,7 +217,10 @@ class RamGraphDB(object):
     def delete_relation(self, src, relation, *targets):
         ''' can be both used as (src, relation, dest) for a single relation or
             (src, relation) to delete all relations of that type from the src '''
-        raise NotImplementedError()
+        self.__require_string__(relation)
+        src_node = self._get_item_node(src)
+        for t in targets:
+            src_node.unlink(relation, self._get_item_node(t))
 
     def find(self, target, relation):
         ''' returns back all elements the target has a relation to '''
@@ -304,7 +307,9 @@ if __name__ == '__main__':
     assert set(db.relations_of('tom', True)) == {('knows', 'bob'), ('knows', 'bill')}
     assert list(db.relations_to('bob')) == ['knows']
     assert list(db.relations_to('bob', True)) == [('knows', 'tom')]
-    assert set(db.list_relations()) == {('tom', 'knows', 'bob'), ('tom', 'knows', 'bill')}
+    db.delete_relation('tom', 'knows', 'bill')
+    assert set(db.relations_of('tom', True)) == {('knows', 'bob')}
+    assert set(db.list_relations()) == {('tom', 'knows', 'bob')}
     db.delete_item('bob')
     assert 'bob' not in db
     exit()
