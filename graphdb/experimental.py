@@ -299,11 +299,12 @@ if __name__ == '__main__':
     assert 'bob' in db
     assert set(db.list_objects()) == {'tom', 'bob'}
     db.store_relation('tom', 'knows', 'bob')
+    db.store_relation('tom', 'knows', 'bill')
     assert list(db.relations_of('tom')) == ['knows']
-    assert list(db.relations_of('tom', True)) == [('knows', 'bob')]
+    assert set(db.relations_of('tom', True)) == {('knows', 'bob'), ('knows', 'bill')}
     assert list(db.relations_to('bob')) == ['knows']
     assert list(db.relations_to('bob', True)) == [('knows', 'tom')]
-    assert list(db.list_relations()) == [('tom', 'knows', 'bob')]
+    assert set(db.list_relations()) == {('tom', 'knows', 'bob'), ('tom', 'knows', 'bill')}
     db.delete_item('bob')
     assert 'bob' not in db
     exit()
