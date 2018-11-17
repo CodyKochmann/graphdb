@@ -345,7 +345,9 @@ if __name__ == '__main__':
 
     db._destroy()
     show()
-    
+    assert len(list(db.list_relations())) == 0
+    assert len(list(db)) == 0
+
     db1 = RamGraphDB()
     db2 = RamGraphDB()
     db1.store_relation('bill', 'knows', 'tim')
