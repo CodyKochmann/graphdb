@@ -224,7 +224,7 @@ class RamGraphDB(object):
 
     def find(self, target, relation):
         ''' returns back all elements the target has a relation to '''
-        raise NotImplementedError()
+        return self._get_item_node(target).outgoing[relation]
 
     def relations_of(self, target, include_object=False):
         ''' list all relations the originate from target '''
@@ -307,6 +307,8 @@ if __name__ == '__main__':
     assert set(db.relations_of('tom', True)) == {('knows', 'bob'), ('knows', 'bill')}
     assert list(db.relations_to('bob')) == ['knows']
     assert list(db.relations_to('bob', True)) == [('knows', 'tom')]
+    assert isinstance(db.find('tom', 'knows'), NodeCollection)
+    assert {i.obj for i in db.find('tom', 'knows')} == {'bob', 'bill'}
     db.delete_relation('tom', 'knows', 'bill')
     assert set(db.relations_of('tom', True)) == {('knows', 'bob')}
     assert set(db.list_relations()) == {('tom', 'knows', 'bob')}
