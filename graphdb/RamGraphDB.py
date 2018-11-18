@@ -309,7 +309,8 @@ class RamGraphDB(object):
 
 class V(object):
     """docstring for V"""
-    __slots__ = ('_graph_value','_graph_db','_relations')
+    __slots__ = {'_graph_value','_graph_db','_relations'}
+    __reserved__ = __slots__.union({'__slots__'})
 
     def __init__(self, db, value):
         self._graph_db = db
@@ -319,12 +320,7 @@ class V(object):
 
     def __getattribute__(self, key):
         ''' this runs a query on the next step of the query '''
-        #print('get', key)
-        if key in V.__slots__ or key == '__slots__':
-            return object.__getattribute__(self, key)
-        else:
-            return VList(V(self._graph_db, _) for _ in self._graph_db.find(self._graph_value, key))
-            #return V(self._graph_db, next(self._graph_db.find(self._graph_value, key), None))
+        return object.__getattribute__(self, key) if key in V.__reserved__ else VList(V(self._graph_db, _) for _ in self._graph_db.find(self._graph_value, key))
 
     __getitem__ = __getattribute__
 
