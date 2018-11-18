@@ -170,14 +170,17 @@ class RamGraphDB(object):
         for relation, dst in self.relations_of(old_item, True):
             self.delete_relation(old_item, relation, dst)
             self.store_relation(new_item, relation, dst)
-        for relation, src in self.relations_to(old_item, True):
+        for src, relation in self.relations_to(old_item, True):
             self.delete_relation(src, relation, old_item)
             self.store_relation(src, relation, new_item)
         self.delete_item(old_item)
 
-    def _id_of(self, target):
-        raise NotImplementedError()
+    _id_of = _item_hash
 
+    @staticmethod
+    def serialize(o):
+        return o
+    deserialize = serialize
 
     def __iadd__(self, target):
         ''' use this to combine databases '''
@@ -201,7 +204,7 @@ class RamGraphDB(object):
     def store_relation(self, src, name, dst):
         ''' use this to store a relation between two objects '''
         self.__require_string__(name)
-        print('storing relation', src, name, dst)
+        #print('storing relation', src, name, dst)
         # make sure both items are stored
         self.store_item(src).link(name, self.store_item(dst))
 
@@ -223,12 +226,12 @@ class RamGraphDB(object):
         for relation, dst in self.relations_of(item, True):
             self.delete_relation(item, relation, dst)
             #print(item, relation, dst)
-        for relation, src in self.relations_to(item, True):
+        for src, relation in self.relations_to(item, True):
             self.delete_relation(src, relation, item)
             #print(src, relation, item)
         h = self._item_hash(item)
         if item in self:
-            print('deleting item:', item)
+            #print('deleting item:', item)
             self.nodes[h].clear()
             del self.nodes[h]
 
@@ -252,7 +255,7 @@ class RamGraphDB(object):
         if include_object:
             for k in relations:
                 for v in relations[k]:
-                    yield k, v.obj
+                    yield v.obj, k
         else:
             yield from relations
 
@@ -271,6 +274,8 @@ class RamGraphDB(object):
             yield node.obj
         #for i in self._execute('select code from objects'):
         #    yield self.deserialize(i[0])
+
+    list_objects = __iter__
 
     def show_objects(self):
         ''' display the entire of objects with their (id, value, node) '''
@@ -423,7 +428,7 @@ if __name__ == '__main__':
     assert list(db.relations_of('tom')) == ['knows']
     assert set(db.relations_of('tom', True)) == {('knows', 'bob'), ('knows', 'bill')}
     assert list(db.relations_to('bob')) == ['knows']
-    assert list(db.relations_to('bob', True)) == [('knows', 'tom')]
+    assert list(db.relations_to('bob', True)) == [('tom', 'knows')]
     assert isinstance(db.find('tom', 'knows'), NodeCollection)
     assert {i.obj for i in db.find('tom', 'knows')} == {'bob', 'bill'}
     db.delete_relation('tom', 'knows', 'bill')
