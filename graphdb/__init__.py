@@ -5,7 +5,7 @@
 # @Last Modified time: 2018-04-15 17:52:34
 
 
-from experimental import RamGraphDB as GraphDB, gen
+from RamGraphDB import RamGraphDB as GraphDB, gen
 
 def run_tests():
     ''' use this function to ensure everything is working correctly with graphdb '''

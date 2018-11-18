@@ -13,6 +13,17 @@ def serialize(item):
         protocol=dill.HIGHEST_PROTOCOL
     ))
 
+def graph_hash(obj):
+    '''this hashes all types to a hash without colissions. python's hashing algorithms are not cross type compatable but hashing tuples with the type as the first element seems to do the trick'''
+    obj_type = type(obj)
+    try:
+        # this works for hashables
+        return hash((obj_type, obj))
+    except:
+        # this works for object containers since graphdb
+        # wants to identify different containers
+        # instead of the sum of their current internals
+        return hash((obj_type, id(obj)))
 
 class better_default_dict(dict):
     def __init__(self, constructor):
@@ -80,20 +91,16 @@ class RelationCollection(better_default_dict):
 
 class RamGraphDBNode(object):
     """object containers for RamGraphDB to store objects in"""
-    __slots__ = '_obj', '_hash', 'incoming', 'outgoing'
+    __slots__ = 'obj', '_hash', 'incoming', 'outgoing'
     def __init__(self, obj):
         self.obj = obj
+        self._hash = graph_hash(obj)
         self.incoming = RelationCollection() # relations to the node
         self.outgoing = RelationCollection() # relations from the node
-    @property
-    def obj(self):
-        return self._obj
-    @obj.setter
-    def obj(self, value):
-        self._obj = value
-        self._hash = self._rehash()
+
     def __hash__(self):
         return self._hash
+
     @staticmethod
     def __validate_relation_name__(relation_name):
         assert isinstance(relation_name, str) and relation_name, 'relation_names have to be non-empty strings'
@@ -124,14 +131,7 @@ class RamGraphDBNode(object):
     def clear(self):
         self.incoming.clear()
         self.outgoing.clear()
-        self.obj = None
-    def _rehash(self):
-        #print('hashing with id')
-        return hash( (type(self._obj), id(self._obj)) )
-    @overload
-    def _rehash(self):
-        #print('hashing with object')
-        return hash( (type(self._obj), hash(self._obj)) )
+        del self.obj
 
 class RamGraphDB(object):
     ''' sqlite based graph database for storing native python objects and their relationships to each other '''
@@ -148,7 +148,7 @@ class RamGraphDB(object):
 
     @staticmethod
     def _item_hash(item):
-        return hash(item if isinstance(item, RamGraphDBNode) else RamGraphDBNode(item))
+        return item._hash if isinstance(item, RamGraphDBNode) else graph_hash(item)
 
     def __contains__(self, item):
         return self._item_hash(item) in self.nodes
@@ -245,7 +245,8 @@ class RamGraphDB(object):
         if include_object:
             for k in relations:
                 for v in relations[k]:
-                    yield k, v.obj
+                    if hasattr(v, 'obj'): # filter dead links
+                        yield k, v.obj
         else:
             yield from relations
 
@@ -255,7 +256,8 @@ class RamGraphDB(object):
         if include_object:
             for k in relations:
                 for v in relations[k]:
-                    yield v.obj, k
+                    if hasattr(v, 'obj'): # filter dead links
+                        yield v.obj, k
         else:
             yield from relations
 

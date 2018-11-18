@@ -12,8 +12,8 @@ class GraphDBTest(unittest.TestCase):
         #print('tearing down')
         self.db._destroy()
 
-    def test_default_conn_count(self):
-        self.assertEqual(len(self.db._connections), 1, 'incorrect default conn count')
+    #def test_default_conn_count(self):
+    #    self.assertEqual(len(self.db._connections), 1, 'incorrect default conn count')
 
     def test_store_item(self):
         for i in range(64):
@@ -101,23 +101,23 @@ class GraphDBTest(unittest.TestCase):
         self.test_loadbalancer_example()
 
         self.assertEqual(
-            self.db('cluster').entry_point.where('connected_to', lambda i:i=='server-2')(list),
-            ['loadbalancer-1'],
+            self.db('cluster').entry_point.where('connected_to', lambda i:i=='server-2')(set),
+            {'loadbalancer-1'},
             'wrong set of loadbalancers found'
         )
         self.assertEqual(
-            self.db('cluster').entry_point.where('connected_to', lambda i:i=='server-3')(list),
-            ['loadbalancer-1', 'loadbalancer-2'],
+            self.db('cluster').entry_point.where('connected_to', lambda i:i=='server-3')(set),
+            {'loadbalancer-1', 'loadbalancer-2'},
             'wrong set of loadbalancers found'
         )
         self.assertEqual(
-            self.db('cluster').entry_point.where('connected_to', lambda i:i=='server-4')(list),
-            ['loadbalancer-1', 'loadbalancer-2'],
+            self.db('cluster').entry_point.where('connected_to', lambda i:i=='server-4')(set),
+            {'loadbalancer-1', 'loadbalancer-2'},
             'wrong set of loadbalancers found'
         )
         self.assertEqual(
-            self.db('cluster').entry_point.where('connected_to', lambda i:i=='server-5')(list),
-            ['loadbalancer-2'],
+            self.db('cluster').entry_point.where('connected_to', lambda i:i=='server-5')(set),
+            {'loadbalancer-2'},
             'wrong set of loadbalancers found'
         )
 
@@ -125,13 +125,13 @@ class GraphDBTest(unittest.TestCase):
         self.test_loadbalancer_example()
 
         self.assertEqual(
-            list(self.db.relations_to('server-3')),
-            ['connected_to'],
+            set(self.db.relations_to('server-3')),
+            {'connected_to'},
             'wrong relations were found for "server-3"'
         )
         self.assertEqual(
-            list(self.db.relations_to('server-3', include_object=True)),
-            [('loadbalancer-1', 'connected_to'), ('loadbalancer-2', 'connected_to')],
+            set(self.db.relations_to('server-3', include_object=True)),
+            {('loadbalancer-1', 'connected_to'), ('loadbalancer-2', 'connected_to')},
             'wrong relations and objects were found for "server-3"'
         )
 
