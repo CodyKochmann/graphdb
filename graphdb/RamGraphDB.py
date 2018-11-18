@@ -148,23 +148,22 @@ class RamGraphDB(object):
 
     @staticmethod
     def _item_hash(item):
+        #assert not isinstance(item, RamGraphDBNode)
         return item._hash if isinstance(item, RamGraphDBNode) else graph_hash(item)
 
     def __contains__(self, item):
         return self._item_hash(item) in self.nodes
 
     def _get_item_node(self, item):
-        assert item in self
-        return self.nodes[self._item_hash(item)]
+        return item if isinstance(item, RamGraphDBNode) else self.nodes[self._item_hash(item)]
 
     def store_item(self, item):
         ''' use this function to store a python object in the database '''
         assert not isinstance(item, RamGraphDBNode)
-        node = RamGraphDBNode(item)
-        node_hash = hash(node)
-        if node not in self:
-            self.nodes[node_hash] = node
-        return self.nodes[node_hash]
+        item_hash = graph_hash(item)
+        if item_hash not in self.nodes:
+            self.nodes[item_hash] = RamGraphDBNode(item)
+        return self.nodes[item_hash]
 
     def replace_item(self, old_item, new_item):
         for relation, dst in self.relations_of(old_item, True):
@@ -241,7 +240,7 @@ class RamGraphDB(object):
 
     def relations_of(self, target, include_object=False):
         ''' list all relations the originate from target '''
-        relations = self._get_item_node(target).outgoing
+        relations = (target if isinstance(target, RamGraphDBNode) else self._get_item_node(target)).outgoing
         if include_object:
             for k in relations:
                 for v in relations[k]:
@@ -352,11 +351,9 @@ class V(object):
 class VList(list):
     _slots = tuple(dir(list)) + ('_slots','to','where')
 
-    def __init__(self, *args):
-        list.__init__(self, *args)
-        for i in self:
-            #print(type(i))
-            assert type(i) == V, 'needed a V and got a {}'.format(type(i))
+    #def __init__(self, arg):
+    #    list.__init__(self, arg)
+    #    assert all(type(i)==V for i in self), 'VLists can only contain V objects'
 
     def where(self, relation, filter_fn):
         ''' use this to filter VLists, simply provide a filter function and what relation to apply it to '''
