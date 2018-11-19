@@ -1,17 +1,14 @@
-import dill
+import sys
+
+if sys.version_info < (3,0):
+    raise SystemError('RamGraphDB does not support python 2, TIME TO UPGRADE!!! :D')
+
 from threading import Lock
 from base64 import b64encode as b64e
 from strict_functions import overload
 import generators as gen
 from functools import partial
 
-def serialize(item):
-    # b64e is used on top of dumps because python loses data when encoding
-    # dilled objects for sqlite
-    return b64e(dill.dumps(
-        item,
-        protocol=dill.HIGHEST_PROTOCOL
-    ))
 
 def graph_hash(obj):
     '''this hashes all types to a hash without colissions. python's hashing algorithms are not cross type compatable but hashing tuples with the type as the first element seems to do the trick'''
@@ -176,8 +173,13 @@ class RamGraphDB(object):
 
     @staticmethod
     def serialize(o):
+        '''this is a placeholder function to support SQLiteGraphDB api compatibility. NO SERIALIZING IN RAM!!!'''
         return o
-    deserialize = serialize
+
+    @staticmethod
+    def deserialize(o):
+        '''this is a placeholder function to support SQLiteGraphDB api compatibility. NO SERIALIZING IN RAM!!!'''
+        return o
 
     def __iadd__(self, target):
         ''' use this to combine databases '''
@@ -257,11 +259,6 @@ class RamGraphDB(object):
                         yield v.obj, k
         else:
             yield from relations
-
-    def connections_of(self, target):
-        ''' generate tuples containing (relation, object_that_applies) '''
-        raise NotImplementedError()
-        #return gen.chain( ((r,i) for i in self.find(target,r)) for r in self.relations_of(target) )
 
     def iter_nodes(self):
         for _id in self.nodes:

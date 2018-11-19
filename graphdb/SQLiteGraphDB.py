@@ -116,7 +116,7 @@ class better_default_dict(dict):
 
 from threading import current_thread
 
-class GraphDB(object):
+class SQLiteGraphDB(object):
     ''' sqlite based graph database for storing native python objects and their relationships to each other '''
 
     def __init__(self, path=':memory:', autostore=True, autocommit=True):
@@ -258,7 +258,7 @@ class GraphDB(object):
     def __add__(self, target):
         ''' use this to create a joined database from two graph databases '''
         assert type(target) is self.__class__, 'graph databases can only be added to other graph databases'
-        out = GraphDB()
+        out = SQLiteGraphDB()
         out += self
         out += target
         return out

@@ -4,8 +4,26 @@
 # @Last Modified 2018-03-19
 # @Last Modified time: 2018-04-15 17:52:34
 
+import sys, os
+from functools import partial
 
-from RamGraphDB import RamGraphDB as GraphDB, gen
+import generators as gen
+
+__all__ = ['GraphDB']
+
+__module_path__ = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(__module_path__)
+
+if sys.version_info > (3,0):
+    from RamGraphDB import RamGraphDB
+from SQLiteGraphDB import SQLiteGraphDB
+
+def GraphDB(path=':memory:', autostore=True, autocommit=True):
+    if path == ':memory:' and  sys.version_info > (3,0):
+        return RamGraphDB(autostore=autostore)
+    else:
+        return SQLiteGraphDB(path=path, autostore=autostore, autocommit=autocommit)
+
 
 def run_tests():
     ''' use this function to ensure everything is working correctly with graphdb '''
