@@ -32,11 +32,9 @@ class better_default_dict(dict):
         self._constructor = constructor
 
     def __getitem__(self, target):
-        if target in self:
-            return dict.__getitem__(self, target)
-        else:
+        if target not in self:
             dict.__setitem__(self, target, self._constructor())
-            return dict.__getitem__(self, target)
+        return dict.__getitem__(self, target)
 
 class NodeLinker(dict):
     """linker between nodes in RamGraphDB"""
