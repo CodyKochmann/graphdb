@@ -340,7 +340,7 @@ class V(object):
         return self._graph_value.obj if isinstance(self._graph_value, RamGraphDBNode) else self._graph_value
 
 class VList(list):
-    _slots = tuple(dir(list)) + ('_slots','to','where')
+    _slots = set(tuple(dir(list)) + ('_slots','to','where'))
 
     #def __init__(self, arg):
     #    list.__init__(self, arg)
