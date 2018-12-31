@@ -1,4 +1,9 @@
 # graphdb
+
+[![Downloads](https://pepy.tech/badge/graphdb)](https://pepy.tech/project/graphdb)
+[![Downloads](https://pepy.tech/badge/graphdb/month)](https://pepy.tech/project/graphdb)
+[![Downloads](https://pepy.tech/badge/graphdb/week)](https://pepy.tech/project/graphdb)
+
 A sqlite based graph database for storing native python objects and their relationships to each other.
 
 ![ ](https://bit.ly/graph_db_png)
