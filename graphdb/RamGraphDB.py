@@ -359,6 +359,15 @@ class VList(list):
 
     where = overload(_where, where)
 
+    def _where(self, **kwargs):
+        '''use this to filter VLists with kv pairs'''
+        out = self
+        for k,v in kwargs.items():
+            out = out.where(k, lambda i:i==v)
+        return out
+    
+    where = overload(_where, where)
+
     def to(self, output_type):
         assert type(output_type) == type, 'needed a type here not: {}'.format(output_type)
         return output_type(self())
