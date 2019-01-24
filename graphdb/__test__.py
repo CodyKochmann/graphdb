@@ -121,6 +121,43 @@ class GraphDBTest(unittest.TestCase):
             'wrong set of loadbalancers found'
         )
 
+    def test_kv_searching(self):
+        self.test_where_filter()
+        self.assertEqual(
+            self.db('cluster').entry_point.where(connected_to='server-2')(set),
+            {'loadbalancer-1'},
+            'wrong set of loadbalancers found'
+        )
+        self.assertEqual(
+            self.db('cluster').entry_point.where(connected_to='server-3')(set),
+            {'loadbalancer-1', 'loadbalancer-2'},
+            'wrong set of loadbalancers found'
+        )
+        self.assertEqual(
+            self.db('cluster').entry_point.where(connected_to='server-4')(set),
+            {'loadbalancer-1', 'loadbalancer-2'},
+            'wrong set of loadbalancers found'
+        )
+        self.assertEqual(
+            self.db('cluster').entry_point.where(connected_to='server-5')(set),
+            {'loadbalancer-2'},
+            'wrong set of loadbalancers found'
+        )
+
+    def test_relations_to(self):
+        self.test_loadbalancer_example()
+
+        self.assertEqual(
+            set(self.db.relations_to('server-3')),
+            {'connected_to'},
+            'wrong relations were found for "server-3"'
+        )
+        self.assertEqual(
+            set(self.db.relations_to('server-3', include_object=True)),
+            {('loadbalancer-1', 'connected_to'), ('loadbalancer-2', 'connected_to')},
+            'wrong relations and objects were found for "server-3"'
+        )
+
     def test_relations_to(self):
         self.test_loadbalancer_example()
 
