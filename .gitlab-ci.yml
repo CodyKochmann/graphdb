@@ -1,0 +1,8 @@
+job:
+  before_script:
+    - ls
+  script:
+    - python graphdb/__init__.py
+  after_script:
+    - ls -lthar
+
