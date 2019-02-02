@@ -1,7 +1,48 @@
-job:
+job1:
   image: python:latest
   before_script:
     - pip install .
   script:
     - python graphdb/__init__.py
 
+job2:
+  image: python:alpine
+  before_script:
+    - pip install .
+  script:
+    - python graphdb/__init__.py
+
+job3:
+  image: python:3.7
+  before_script:
+    - pip install .
+  script:
+    - python graphdb/__init__.py
+
+job4:
+  image: python:3.6
+  before_script:
+    - pip install .
+  script:
+    - python graphdb/__init__.py
+
+job5:
+  image: python:3.5
+  before_script:
+    - pip install .
+  script:
+    - python graphdb/__init__.py
+
+job6:
+  image: python:3.4
+  before_script:
+    - pip install .
+  script:
+    - python graphdb/__init__.py
+
+job7:
+  image: python:2.7
+  before_script:
+    - pip install .
+  script:
+    - python graphdb/__init__.py
