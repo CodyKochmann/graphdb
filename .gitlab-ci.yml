@@ -1,4 +1,5 @@
 job:
+  image: codykochmann/py3-lab
   before_script:
     - ls
   script:
