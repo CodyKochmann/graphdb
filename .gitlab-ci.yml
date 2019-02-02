@@ -1,35 +1,50 @@
-job1:
+stages:
+  - test
+  - deploy
+
+test_latest:
+  stage: test
   image: python:latest
   before_script:
     - pip install .
   script:
     - python graphdb/__init__.py
 
-job2:
+test_alpine:
+  stage: test
   image: python:alpine
   before_script:
     - pip install .
   script:
     - python graphdb/__init__.py
 
-job3:
+test_3.7:
+  stage: test
   image: python:3.7
   before_script:
     - pip install .
   script:
     - python graphdb/__init__.py
 
-job4:
+test_3.6:
+  stage: test
   image: python:3.6
   before_script:
     - pip install .
   script:
     - python graphdb/__init__.py
 
-job5:
+test_3.5:
+  stage: test
   image: python:3.5
   before_script:
     - pip install .
   script:
     - python graphdb/__init__.py
 
+deploy_job:
+  stage: deploy
+  image: docker:dind
+  script:
+    - pwd
+    - ls -lthar
