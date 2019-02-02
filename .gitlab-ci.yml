@@ -40,9 +40,3 @@ job6:
   script:
     - python graphdb/__init__.py
 
-job7:
-  image: python:2.7
-  before_script:
-    - pip install .
-  script:
-    - python graphdb/__init__.py
