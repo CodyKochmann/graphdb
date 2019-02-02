@@ -1,7 +1,8 @@
 job:
-  image: codykochmann/py3-lab
+  image: python:alpine
   before_script:
     - ls
+    - python --version
   script:
     - python graphdb/__init__.py
   after_script:
