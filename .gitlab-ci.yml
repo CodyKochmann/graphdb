@@ -1,8 +1,9 @@
 job:
   image: python:alpine
   before_script:
-    - ls
+    - ls -lthar
     - python --version
+    - pip install .
   script:
     - python graphdb/__init__.py
   after_script:
