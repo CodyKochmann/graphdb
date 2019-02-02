@@ -33,10 +33,3 @@ job5:
   script:
     - python graphdb/__init__.py
 
-job6:
-  image: python:3.4
-  before_script:
-    - pip install .
-  script:
-    - python graphdb/__init__.py
-
