@@ -14,7 +14,7 @@ A sqlite based graph database for storing native python objects and their relati
 pip install graphdb
 ```
 
-## How do I use it?
+## How to use it?
 
 ```python
 In [1]: # import GraphDB
