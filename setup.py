@@ -1,6 +1,6 @@
 from distutils.core import setup
 
-version = '2018.11.19'
+version = '2019.2.18'
 
 setup(
   name = 'graphdb',
