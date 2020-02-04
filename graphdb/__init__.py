@@ -11,17 +11,19 @@ import generators as gen
 
 __all__ = ['GraphDB']
 
-__module_path__ = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(__module_path__)
-
 if sys.version_info > (3,0):
-    from RamGraphDB import RamGraphDB
-from SQLiteGraphDB import SQLiteGraphDB
+    from .RamGraphDB import RamGraphDB
+from .SQLiteGraphDB import SQLiteGraphDB
 
-def GraphDB(path=':memory:', autostore=True, autocommit=True):
-    if path == ':memory:' and  sys.version_info > (3,0):
+def GraphDB(path='', autostore=True, autocommit=True):
+    if path == ':memory:':
+        # load sqlite engine if sqlite syntax for ram db used
+        return SQLiteGraphDB(path=path, autostore=autostore, autocommit=autocommit)
+    elif path == '' and  sys.version_info > (3,0):
+        # load in high peformance ram db if no path specified and running py3+
         return RamGraphDB(autostore=autostore)
     else:
+        # if path is specified provide sqlite engine
         return SQLiteGraphDB(path=path, autostore=autostore, autocommit=autocommit)
 
 
