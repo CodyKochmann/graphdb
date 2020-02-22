@@ -20,7 +20,7 @@ test_latest:
     # run unittests
     - python -m unittest --verbose graphdb 2>&1 | tee test.log
     # ensure unittest module didnt run 0 tests
-    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read())'
+    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read()))'
 
 test_alpine:
   stage: test-all
@@ -31,7 +31,7 @@ test_alpine:
     # run unittests
     - python -m unittest --verbose graphdb 2>&1 | tee test.log
     # ensure unittest module didnt run 0 tests
-    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read())'
+    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read()))'
 
 test_3.7:
   stage: test-all
@@ -42,7 +42,7 @@ test_3.7:
     # run unittests
     - python -m unittest --verbose graphdb 2>&1 | tee test.log
     # ensure unittest module didnt run 0 tests
-    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read())'
+    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read()))'
 
 test_3.6:
   stage: test-all
@@ -53,7 +53,7 @@ test_3.6:
     # run unittests
     - python -m unittest --verbose graphdb 2>&1 | tee test.log
     # ensure unittest module didnt run 0 tests
-    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read())'
+    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read()))'
 
 test_3.5:
   stage: test-all
@@ -64,7 +64,7 @@ test_3.5:
     # run unittests
     - python -m unittest --verbose graphdb 2>&1 | tee test.log
     # ensure unittest module didnt run 0 tests
-    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read())'
+    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read()))'
 
 deploy_job:
   stage: deploy
