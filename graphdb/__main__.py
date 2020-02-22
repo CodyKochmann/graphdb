@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser(prog='__main__.py')
 
 parser.add_argument(
     '--test',
-    help="run tests to see if battle_tested works correctly on you system",
+    help='run tests to see if graphdb works correctly on you system',
     action='store_true'
 )
 

@@ -549,12 +549,3 @@ if __name__ == '__main__':
         print(i)
 
     db._destroy()
-
-
-    exit()
-
-if __name__ == '__main__':
-    import __test__
-    __test__.GraphDB = RamGraphDB
-    GraphDBTest = __test__.GraphDBTest
-    __test__.unittest.main()

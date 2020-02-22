@@ -119,17 +119,6 @@ def run_tests():
 
     db._destroy()
 
-def run_unittests():
-    print('\nrunning unittests...\n')
-    import unittest, sys, os
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    import __test__
-    sys.path.pop()
-
-    unittest.TextTestRunner(verbosity=2).run(
-        unittest.findTestCases(__test__)
-    )
-
 def run_benchmarks():
     print('\nrunning benchmarks...\n')
     import unittest, sys, os
@@ -143,6 +132,5 @@ def run_benchmarks():
 
 if __name__ == '__main__':
     run_tests()
-    run_unittests()
     run_benchmarks()
 
