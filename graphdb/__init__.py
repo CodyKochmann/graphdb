@@ -11,8 +11,6 @@ import generators as gen
 
 __all__ = ['GraphDB']
 
-if sys.version_info > (3,0):
-    from .RamGraphDB import RamGraphDB ##
 from .SQLiteGraphDB import SQLiteGraphDB
 
 def GraphDB(path='', autostore=True, autocommit=True):
@@ -26,6 +24,15 @@ def GraphDB(path='', autostore=True, autocommit=True):
         # if path is specified provide sqlite engine
         return SQLiteGraphDB(path=path, autostore=autostore, autocommit=autocommit)
 
+class DummyRamGraphDB(SQLiteGraphDB):
+        '''dummy RamGraphDB that uses sqlite for backwards compatability'''
+        def __init__(self, autostore=True):
+            SQLiteGraphDB.__init__(self, path=':memory:', autostore=autostore, autocommit=True)
+
+if sys.version_info >= (3, 6):
+    from .RamGraphDB import RamGraphDB
+else:
+    RamGraphDB = DummyRamGraphDB
 
 def run_tests():
     ''' use this function to ensure everything is working correctly with graphdb '''
