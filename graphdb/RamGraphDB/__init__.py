@@ -1,7 +1,12 @@
 import sys
 
-if sys.version_info < (3,0):
-    raise SystemError('RamGraphDB does not support python 2, TIME TO UPGRADE!!! :D')
+if sys.version_info < (3, 6):
+    raise SystemError(
+        'RamGraphDB needs python 3.6 or higher. You are running {}.{}, TIME TO UPGRADE!!! :D'.format(
+            sys.version_info[0],
+            sys.version_info[1]
+        )
+    )
 
 from threading import Lock
 from base64 import b64encode as b64e
