@@ -12,7 +12,7 @@ import generators as gen
 __all__ = ['GraphDB']
 
 if sys.version_info > (3,0):
-    from .RamGraphDB import RamGraphDB
+    from .RamGraphDB import RamGraphDB ##
 from .SQLiteGraphDB import SQLiteGraphDB
 
 def GraphDB(path='', autostore=True, autocommit=True):
