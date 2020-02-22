@@ -48,6 +48,7 @@ test_slim:
 test_3.9:
   stage: test-all
   image: python:3.9
+  allow_failure: true
   before_script:
     - pip install .
   script:
@@ -130,6 +131,7 @@ benchmark_slim:
 benchmark_3.9:
   stage: benchmark-all
   image: python:3.9
+  allow_failure: true
   before_script:
     - pip install .
   script:
