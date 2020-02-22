@@ -45,6 +45,17 @@ test_slim:
     # ensure unittest module didnt run 0 tests
     - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read()))'
 
+test_3.9:
+  stage: test-all
+  image: python:3.9
+  before_script:
+    - pip install .
+  script:
+    # run unittests
+    - python -m unittest --verbose graphdb 2>&1 | tee test.log
+    # ensure unittest module didnt run 0 tests
+    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read()))'
+
 test_3.8:
   stage: test-all
   image: python:3.8
@@ -110,6 +121,15 @@ benchmark_alpine:
 benchmark_slim:
   stage: benchmark-all
   image: python:slim
+  before_script:
+    - pip install .
+  script:
+    # run unittests
+    - python -m graphdb --benchmark
+    
+benchmark_3.9:
+  stage: benchmark-all
+  image: python:3.9
   before_script:
     - pip install .
   script:
