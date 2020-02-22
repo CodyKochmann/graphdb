@@ -4,6 +4,8 @@ def generate_api_tests(GraphDB: type) -> TestCase:
     ''' generates a generic set of tests for multiple types of GraphDB's
         to test consistency across different backends
     '''
+    assert callable(GraphDB), GraphDB
+
     class GraphDBTest(TestCase):
         def setUp(self):
             #print('setting up')
@@ -172,7 +174,7 @@ def generate_api_tests(GraphDB: type) -> TestCase:
                 {('loadbalancer-1', 'connected_to'), ('loadbalancer-2', 'connected_to')},
                 'wrong relations and objects were found for "server-3"'
             )
-
+    return GraphDBTest
     '''
     # this code is for later to test if lambdas/functions/classes
     # maintain functionality after serialization

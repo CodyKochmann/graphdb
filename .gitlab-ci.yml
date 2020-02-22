@@ -23,6 +23,8 @@ test_latest_with_requirements_txt:
   stage: test-latest
   image: python:latest
   before_script:
+    - pwd
+    - ls -lthar .
     - pip install -r requirements.txt
   script:
     - python -m unittest --verbose graphdb
