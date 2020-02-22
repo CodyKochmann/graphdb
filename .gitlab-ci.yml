@@ -107,6 +107,7 @@ benchmark_latest:
   before_script:
     - pip install .
   script:
+    - cat /proc/cpuinfo
     - python graphdb/__benchmark__.py
 
 benchmark_alpine:
@@ -115,6 +116,7 @@ benchmark_alpine:
   before_script:
     - pip install .
   script:
+    - cat /proc/cpuinfo
     - python graphdb/__benchmark__.py
     
 benchmark_slim:
@@ -123,6 +125,7 @@ benchmark_slim:
   before_script:
     - pip install .
   script:
+    - cat /proc/cpuinfo
     - python graphdb/__benchmark__.py
     
 benchmark_3.9:
@@ -132,6 +135,7 @@ benchmark_3.9:
   before_script:
     - pip install .
   script:
+    - cat /proc/cpuinfo
     - python graphdb/__benchmark__.py
     
 benchmark_3.8:
@@ -140,6 +144,7 @@ benchmark_3.8:
   before_script:
     - pip install .
   script:
+    - cat /proc/cpuinfo
     - python graphdb/__benchmark__.py
     
 benchmark_3.7:
@@ -148,6 +153,7 @@ benchmark_3.7:
   before_script:
     - pip install .
   script:
+    - cat /proc/cpuinfo
     - python graphdb/__benchmark__.py
 
 benchmark_3.6:
@@ -156,6 +162,7 @@ benchmark_3.6:
   before_script:
     - pip install .
   script:
+    - cat /proc/cpuinfo
     - python graphdb/__benchmark__.py
 
 benchmark_3.5:
@@ -164,6 +171,7 @@ benchmark_3.5:
   before_script:
     - pip install .
   script:
+    - cat /proc/cpuinfo
     - python graphdb/__benchmark__.py
 
 
