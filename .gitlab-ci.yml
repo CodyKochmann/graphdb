@@ -1,7 +1,7 @@
 stages:
   - test-latest
-  - test-all
-  - deploy
+#  - test-all
+#  - deploy
 
 test_latest:
   stage: test-latest

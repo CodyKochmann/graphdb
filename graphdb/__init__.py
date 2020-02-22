@@ -130,6 +130,14 @@ def run_benchmarks():
         unittest.findTestCases(__benchmark__)
     )
 
+# attempt to suck in all the tests so tests can be ran with:
+#   python -m unittest generators
+try:
+    from .tests import *
+except:
+    pass
+
+
 if __name__ == '__main__':
     run_tests()
     run_benchmarks()
