@@ -3,8 +3,8 @@ import sys, os, setuptools
 
 version = '2020.2.4'
 name = 'graphdb'
-description = 'sqlite based graph database for storing native python objects and their relationships to each other',
-keywords = ['graphdb', 'graph', 'sqlite', 'database', 'db', 'node', 'relation', 'attribute'],
+description = 'sqlite based graph database for storing native python objects and their relationships to each other'
+keywords = ['graphdb', 'graph', 'sqlite', 'database', 'db', 'node', 'relation', 'attribute']
 
 packages = setuptools.find_packages()
 
