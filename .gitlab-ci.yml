@@ -2,6 +2,7 @@ stages:
   - test-install
   - test-latest
   - test-all
+  - benchmark-all
   - deploy
 
 test_install:
@@ -25,6 +26,28 @@ test_latest:
 test_alpine:
   stage: test-all
   image: python:alpine
+  before_script:
+    - pip install .
+  script:
+    # run unittests
+    - python -m unittest --verbose graphdb 2>&1 | tee test.log
+    # ensure unittest module didnt run 0 tests
+    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read()))'
+
+test_slim:
+  stage: test-all
+  image: python:slim
+  before_script:
+    - pip install .
+  script:
+    # run unittests
+    - python -m unittest --verbose graphdb 2>&1 | tee test.log
+    # ensure unittest module didnt run 0 tests
+    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read()))'
+
+test_3.8:
+  stage: test-all
+  image: python:3.8
   before_script:
     - pip install .
   script:
@@ -65,6 +88,70 @@ test_3.5:
     - python -m unittest --verbose graphdb 2>&1 | tee test.log
     # ensure unittest module didnt run 0 tests
     - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read()))'
+
+benchmark_latest:
+  stage: benchmark-all
+  image: python:latest
+  before_script:
+    - pip install .
+  script:
+    # run unittests
+    - python -m graphdb --benchmark
+
+benchmark_alpine:
+  stage: benchmark-all
+  image: python:alpine
+  before_script:
+    - pip install .
+  script:
+    # run unittests
+    - python -m graphdb --benchmark
+    
+benchmark_slim:
+  stage: benchmark-all
+  image: python:slim
+  before_script:
+    - pip install .
+  script:
+    # run unittests
+    - python -m graphdb --benchmark
+    
+benchmark_3.8:
+  stage: benchmark-all
+  image: python:3.8
+  before_script:
+    - pip install .
+  script:
+    # run unittests
+    - python -m graphdb --benchmark
+    
+benchmark_3.7:
+  stage: benchmark-all
+  image: python:3.7
+  before_script:
+    - pip install .
+  script:
+    # run unittests
+    - python -m graphdb --benchmark
+
+benchmark_3.6:
+  stage: benchmark-all
+  image: python:3.6
+  before_script:
+    - pip install .
+  script:
+    # run unittests
+    - python -m graphdb --benchmark
+
+benchmark_3.5:
+  stage: benchmark-all
+  image: python:3.5
+  before_script:
+    - pip install .
+  script:
+    # run unittests
+    - python -m graphdb --benchmark
+
 
 deploy_job:
   stage: deploy
