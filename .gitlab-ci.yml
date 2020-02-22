@@ -1,7 +1,15 @@
 stages:
+  - test-install
   - test-latest
   - test-all
   - deploy
+
+test_install:
+  stage: test-install
+  image: python:latest
+  script:
+    - pip install .
+    - python -m graphdb --help
 
 test_latest:
   stage: test-latest
@@ -9,33 +17,10 @@ test_latest:
   before_script:
     - pip install .
   script:
-    - python -m unittest --verbose graphdb
-
-test_latest_direct_test:
-  stage: test-latest
-  image: python:latest
-  before_script:
-    - pip install .
-  script:
-    - python -m unittest --verbose graphdb.tests
-
-test_latest_with_requirements_txt:
-  stage: test-latest
-  image: python:latest
-  before_script:
-    - pwd
-    - ls -lthar .
-    - pip install -r requirements.txt
-  script:
-    - python -m unittest --verbose graphdb
-
-test_latest_with_arg_test:
-  stage: test-latest
-  image: python:latest
-  before_script:
-    - pip install .
-  script:
-    - python -m graphdb --test
+    # run unittests
+    - python -m unittest --verbose graphdb 2>&1 | tee test.log
+    # ensure unittest module didnt run 0 tests
+    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read())'
 
 test_alpine:
   stage: test-all
@@ -43,31 +28,43 @@ test_alpine:
   before_script:
     - pip install .
   script:
-    - python -m unittest --verbose graphdb
+    # run unittests
+    - python -m unittest --verbose graphdb 2>&1 | tee test.log
+    # ensure unittest module didnt run 0 tests
+    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read())'
 
-#test_3.7:
-#  stage: test-all
-#  image: python:3.7
-#  before_script:
-#    - pip install .
-#  script:
-#    - python -m unittest --verbose graphdb
-#
-#test_3.6:
-#  stage: test-all
-#  image: python:3.6
-#  before_script:
-#    - pip install .
-#  script:
-#    - python -m unittest --verbose graphdb
-#
-#test_3.5:
-#  stage: test-all
-#  image: python:3.5
-#  before_script:
-#    - pip install .
-#  script:
-#    - python -m unittest --verbose graphdb
+test_3.7:
+  stage: test-all
+  image: python:3.7
+  before_script:
+    - pip install .
+  script:
+    # run unittests
+    - python -m unittest --verbose graphdb 2>&1 | tee test.log
+    # ensure unittest module didnt run 0 tests
+    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read())'
+
+test_3.6:
+  stage: test-all
+  image: python:3.6
+  before_script:
+    - pip install .
+  script:
+    # run unittests
+    - python -m unittest --verbose graphdb 2>&1 | tee test.log
+    # ensure unittest module didnt run 0 tests
+    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read())'
+
+test_3.5:
+  stage: test-all
+  image: python:3.5
+  before_script:
+    - pip install .
+  script:
+    # run unittests
+    - python -m unittest --verbose graphdb 2>&1 | tee test.log
+    # ensure unittest module didnt run 0 tests
+    - python -c 'exit(int("Ran 0 tests" in open("test.log","r").read())'
 
 deploy_job:
   stage: deploy
