@@ -107,8 +107,7 @@ benchmark_latest:
   before_script:
     - pip install .
   script:
-    # run unittests
-    - python -m graphdb --benchmark
+    - python graphdb/__benchmark__.py
 
 benchmark_alpine:
   stage: benchmark-all
@@ -116,8 +115,7 @@ benchmark_alpine:
   before_script:
     - pip install .
   script:
-    # run unittests
-    - python -m graphdb --benchmark
+    - python graphdb/__benchmark__.py
     
 benchmark_slim:
   stage: benchmark-all
@@ -125,8 +123,7 @@ benchmark_slim:
   before_script:
     - pip install .
   script:
-    # run unittests
-    - python -m graphdb --benchmark
+    - python graphdb/__benchmark__.py
     
 benchmark_3.9:
   stage: benchmark-all
@@ -135,8 +132,7 @@ benchmark_3.9:
   before_script:
     - pip install .
   script:
-    # run unittests
-    - python -m graphdb --benchmark
+    - python graphdb/__benchmark__.py
     
 benchmark_3.8:
   stage: benchmark-all
@@ -144,8 +140,7 @@ benchmark_3.8:
   before_script:
     - pip install .
   script:
-    # run unittests
-    - python -m graphdb --benchmark
+    - python graphdb/__benchmark__.py
     
 benchmark_3.7:
   stage: benchmark-all
@@ -153,8 +148,7 @@ benchmark_3.7:
   before_script:
     - pip install .
   script:
-    # run unittests
-    - python -m graphdb --benchmark
+    - python graphdb/__benchmark__.py
 
 benchmark_3.6:
   stage: benchmark-all
@@ -162,8 +156,7 @@ benchmark_3.6:
   before_script:
     - pip install .
   script:
-    # run unittests
-    - python -m graphdb --benchmark
+    - python graphdb/__benchmark__.py
 
 benchmark_3.5:
   stage: benchmark-all
@@ -171,8 +164,7 @@ benchmark_3.5:
   before_script:
     - pip install .
   script:
-    # run unittests
-    - python -m graphdb --benchmark
+    - python graphdb/__benchmark__.py
 
 
 deploy_job:

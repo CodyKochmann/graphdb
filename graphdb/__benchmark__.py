@@ -3,9 +3,8 @@ from __future__ import print_function
 from itertools import count
 from functools import partial
 import unittest, sys, os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from __init__ import GraphDB
+from graphdb import GraphDB
 from generators import rps, G
 
 def report(name, speed):
