@@ -11,4 +11,4 @@ TestSQLiteGraphDB = generate_api_tests(SQLiteGraphDB)
 
 if sys.version_info <= (3, 6):
 	__all__.append('TestRamGraphDB')
-	TestRamGraphDB    = generate_api_tests(RamGraphDB)
+	TestRamGraphDB = generate_api_tests(RamGraphDB)
