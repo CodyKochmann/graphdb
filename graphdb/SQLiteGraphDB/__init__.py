@@ -124,7 +124,7 @@ class SQLiteGraphDB(object):
             self._create_file(path)
         self._state = read_write_state_machine()
         self._autostore = True
-        self._autocommit = True
+        self._autocommit = autocommit
         self._path = path
         self._connections = better_default_dict(lambda s=self:sqlite3.connect(s._path))
         self._cursors = better_default_dict(lambda s=self:s.conn.cursor())
