@@ -120,10 +120,12 @@ class SQLiteGraphDB(object):
     ''' sqlite based graph database for storing native python objects and their relationships to each other '''
 
     def __init__(self, path=':memory:', autostore=True, autocommit=True):
+        assert isinstance(autostore, bool), autostore  # autostore needs to be a boolean
+        assert isinstance(autocommit, bool), autocommit  # autocommit needs to be a boolean
         if path != ':memory:':
             self._create_file(path)
         self._state = read_write_state_machine()
-        self._autostore = True
+        self._autostore = autostore
         self._autocommit = autocommit
         self._path = path
         self._connections = better_default_dict(lambda s=self:sqlite3.connect(s._path))
@@ -173,7 +175,7 @@ class SQLiteGraphDB(object):
     @staticmethod
     def _create_file(path=''):
         ''' creates a file at the given path and sets the permissions to user only read/write '''
-        from os.path import isfile
+        assert isinstance(path, str), path  # path needs to be a string
         if not isfile(path): # only do the following if the file doesn't exist yet
             from os import chmod
             from stat import S_IRUSR, S_IWUSR
